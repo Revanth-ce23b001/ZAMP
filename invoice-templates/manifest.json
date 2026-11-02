@@ -298,6 +298,50 @@
       "bank": {"account_number": "0645201004567", "ifsc": "CNRB0001456"},
       "expect": {"vendor_in_master": true, "bank": "match", "po": "explicit", "duplicate": "none"},
       "provenance": {"sources": ["PRD §13.2 T-18"], "proposed": ["invoice_number", "invoice_date", "lines.quantity", "tax", "total", "bank"]}
+    },
+    {
+      "test_id": "T-25a",
+      "file": "T25a_bank_mismatch_override_KE-2026-0312.pdf",
+      "layout": "bill",
+      "vendor": {"vendor_id": "V005", "legal_name": "Kaveri Electricals", "gstin": "29ABJPK2345Q1Z6", "state_code": "29", "state_name": "Karnataka"},
+      "invoice_number": "KE/2026/0312",
+      "invoice_date": "2026-10-30",
+      "po_reference": "PO-1045",
+      "lines": [
+        {"item_code": "CBL-25", "description": "Copper cable 2.5 sqmm coil", "quantity": 60, "uom": "coil", "unit_price": "1000.00", "amount": "60000.00"}
+      ],
+      "subtotal": "60000.00",
+      "discount": null,
+      "taxable_value": "60000.00",
+      "tax": {"cgst": {"rate": 9, "amount": "5400.00"}, "sgst": {"rate": 9, "amount": "5400.00"}, "igst": null},
+      "other_charges": [],
+      "round_off": null,
+      "total": "70800.00",
+      "bank": {"account_number": "50100045671234", "ifsc": "HDFC0002468"},
+      "expect": {"vendor_in_master": true, "bank": "mismatch", "po": "explicit", "duplicate": "none"},
+      "provenance": {"sources": ["PRD §13.2 T-25(a)", "Day 2B brief"], "proposed": ["invoice_number", "invoice_date", "bank"]}
+    },
+    {
+      "test_id": "T-25b",
+      "file": "T25b_consumes_balance_KE-2026-0313.pdf",
+      "layout": "bill",
+      "vendor": {"vendor_id": "V005", "legal_name": "Kaveri Electricals", "gstin": "29ABJPK2345Q1Z6", "state_code": "29", "state_name": "Karnataka"},
+      "invoice_number": "KE/2026/0313",
+      "invoice_date": "2026-10-30",
+      "po_reference": "PO-1045",
+      "lines": [
+        {"item_code": "CBL-25", "description": "Copper cable 2.5 sqmm coil", "quantity": 50, "uom": "coil", "unit_price": "1000.00", "amount": "50000.00"}
+      ],
+      "subtotal": "50000.00",
+      "discount": null,
+      "taxable_value": "50000.00",
+      "tax": {"cgst": {"rate": 9, "amount": "4500.00"}, "sgst": {"rate": 9, "amount": "4500.00"}, "igst": null},
+      "other_charges": [],
+      "round_off": null,
+      "total": "59000.00",
+      "bank": {"account_number": "1712005008123", "ifsc": "KKBK0008012"},
+      "expect": {"vendor_in_master": true, "bank": "match", "po": "explicit", "duplicate": "none"},
+      "provenance": {"sources": ["PRD §13.2 T-25(b)", "Day 2B brief"], "proposed": ["invoice_number", "invoice_date"]}
     }
   ]
 }

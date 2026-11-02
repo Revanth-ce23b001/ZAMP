@@ -9,9 +9,10 @@ deterministic rules decide APPROVE, HOLD or REJECT; humans resolve exceptions.
 - Seed data: [`backend/seed/README_FIXTURES.md`](backend/seed/README_FIXTURES.md) (`fixtures-v1`, synthetic)
 - Wireframe (layout and navigation only; its sample data is placeholder): [`docs/wireframes/`](docs/wireframes/)
 
-**Status: Day 1 (1A + 1B).** Backend scaffold, policy, reason codes, schema, seed loader, read
-endpoints and demo reset; Next.js shell with navigation, Policy page and Demo Reset page.
-No upload, extraction, rules engine or business screens yet.
+**Status: Day 2B.** Backend scaffold, policy, reason codes, schema, seed loader, read endpoints,
+demo reset, verified sample invoices, PDF upload, the sequential worker and stages 1-2 (Ingest,
+Extract with Gemini, cached by file hash). Runs stop at PROCESSING after Extract; stages 3-7
+(rules and decision) arrive on Day 3. Next.js shell with navigation, Policy and Demo Reset pages.
 
 All data is synthetic. Money is stored as integer paise.
 
@@ -23,7 +24,7 @@ Requires Python 3.12+ (tested on 3.14.5) and Node 20.9+ (tested on 24.16).
 # backend
 cd backend
 python -m pip install -r requirements.txt
-cp ../.env.example ../.env                 # set DEMO_RESET_TOKEN
+cp ../.env.example .env                    # set DEMO_RESET_TOKEN and the LLM key; backend/.env is gitignored
 
 # frontend
 cd ../frontend
@@ -33,7 +34,7 @@ cp .env.example .env.local                 # set BACKEND_URL and the SAME DEMO_R
 
 ### Environment variables
 
-Backend (`.env` at the repo root):
+Backend (`backend/.env`, gitignored; never put real keys in `.env.example`):
 
 | Variable | Required | Purpose |
 |---|---|---|
@@ -41,7 +42,10 @@ Backend (`.env` at the repo root):
 | `DATABASE_PATH` | no | SQLite file. Default `backend/data/clearmatch.db`. |
 | `UPLOADS_DIR` | no | Uploaded PDFs. Default `backend/storage/uploads`. |
 | `FRONTEND_ORIGIN` | no | The only origin allowed by CORS. Default `http://localhost:3000`. |
-| `LLM_PROVIDER`, `LLM_MODEL`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` | no | Extraction (Day 2). Unused today. |
+| `LLM_PROVIDER`, `LLM_MODEL` | for extraction | `gemini` and a pinned model, e.g. `gemini-3.6-flash`. If unset, every run ends in ERROR ("provider not configured"). |
+| `GEMINI_API_KEY` | for extraction | Backend only; never sent to the browser, logged or stored. `ANTHROPIC_API_KEY` is reserved for the P1 second adapter. |
+| `EXTRACTION_CACHE` | no | `on` (default) reuses extractions by file hash (FR-014). `off` disables cache reads and writes. |
+| `SAMPLES_DIR` | no | Sample PDFs listed by `GET /api/samples`. Default `backend/samples`. |
 
 Frontend (`frontend/.env.local`). Both are **server-only**; never give them a `NEXT_PUBLIC_` prefix:
 
@@ -58,8 +62,11 @@ Backend (from `backend/`):
 |---|---|
 | Apply migrations | `python -m app.db.migrate` |
 | Seed (idempotent; also migrates) | `python -m app.db.seed` |
-| Run the API | `python -m uvicorn app.main:app --env-file ../.env --reload` (port 8000) |
-| All tests | `python -m pytest -q` |
+| Run the API | `python -m uvicorn app.main:app --env-file .env --reload` (port 8000) |
+| Run with the cache disabled | add `EXTRACTION_CACHE=off` to `backend/.env`, or set it in the shell first (PowerShell: `$env:EXTRACTION_CACHE="off"`) |
+| All offline tests | `python -m pytest -q` (live provider tests are skipped) |
+| Live extraction tests (cost money, ~10 min) | `python -m pytest tests/test_extraction_live.py --run-live -s` |
+| Determinism only (3 live passes) | `python -m pytest tests/test_extraction_live.py --run-live -s -m determinism` |
 | Fixture tests only | `python -m pytest seed/test_fixtures.py -q` |
 
 Frontend (from `frontend/`):
@@ -108,6 +115,10 @@ per 15 min). The reset is one atomic transaction; the extraction cache and the
 | GET | `/api/seed-status` | Row counts: vendors, purchase_orders, po_lines, ledger, consumption |
 | GET | `/api/pos` | Each PO with `po_total`, `approved` (consumed by committed approvals), `remaining`, `allowed_overrun` = min(1% of total, ₹1,000), `ceiling`. Each amount is `{paise, display}` |
 | GET | `/api/vendors` | Vendor master with masked account (`XXXX XXXX 4471`) and full IFSC. No trusted-contact fields |
+| POST | `/api/invoices` | Multipart upload. Validated before any run exists (PDF type and signature, ≤10 MB, ≤5 pages, not encrypted). Returns `{run_id, existing, run_number, run_display}`; a repeated file returns the existing run and is not reprocessed |
+| GET | `/api/samples` | Sample PDFs in `backend/samples/` |
+| POST | `/api/samples/{name}/process` | Submits a sample through the same upload path |
+| POST | `/api/runs/{run_id}/retry` | Re-queues an ERROR run under the same `run_id` |
 | POST | `/api/demo/reset` | Header `X-Demo-Reset-Token`; body `{"confirm": "RESET", "requester_label": "..."}`. `200 {reset_id, restored}`, `400`, `401`, `429`, `500` |
 
 ## Layout

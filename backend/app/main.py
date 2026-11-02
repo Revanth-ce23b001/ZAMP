@@ -1,11 +1,13 @@
-"""ClearMatch AP backend (FastAPI). Day 1: read endpoints and demo reset.
+"""ClearMatch AP backend (FastAPI). Read endpoints, demo reset, upload and stages 1-2.
 
-Run from backend/:  uvicorn app.main:app --env-file ../.env
+Run from backend/:  uvicorn app.main:app --env-file .env
 """
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -15,7 +17,11 @@ from app.db.connection import connect
 from app.db.migrate import migrate
 from app.db.seed import FIXTURE_VERSION, is_seeded, seed, table_counts
 from app.policy import Policy, load_policy
+from app.services import audit
+from app.services.extraction.base import ExtractionAdapter
 from app.services.reset import ResetService
+from app.services.upload import PDF_MIME, UploadError, display_number, submit
+from app.services.worker import Worker
 from app.utils.masking import mask_account_number, masked_bank
 from app.utils.money import money
 
@@ -53,7 +59,8 @@ def allowed_overrun(po_total: int, policy: Policy) -> int:
     return min(po_total * tol["pct_of_po_total"] // 100, tol["cap_paise"])
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None,
+               adapter_factory: Callable[[], ExtractionAdapter] | None = None) -> FastAPI:
     # Raises ConfigError (and so refuses to start) when DEMO_RESET_TOKEN is missing.
     settings = settings or load_settings(require_reset_token=True)
     if not settings.demo_reset_token:
@@ -61,10 +68,81 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     policy = load_policy()
     _init_database(settings)
     settings.uploads_dir.mkdir(parents=True, exist_ok=True)
+    worker = Worker(settings, policy, adapter_factory)
 
-    app = FastAPI(title=PRODUCT_NAME, version=APP_VERSION)
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        worker.start()          # one sequential worker per backend instance (A-22)
+        try:
+            yield
+        finally:
+            worker.stop()
+
+    app = FastAPI(title=PRODUCT_NAME, version=APP_VERSION, lifespan=lifespan)
     app.state.settings = settings
     app.state.policy = policy
+    app.state.worker = worker
+    upload_limits = policy.assumption("A-23")
+
+    def _submit(file_name: str, data: bytes, content_type: str | None) -> JSONResponse:
+        """Single path for uploads and samples (FR-001..FR-005, FR-002)."""
+        conn = connect(settings.database_path)
+        try:
+            result = submit(conn, settings.uploads_dir, file_name, data, content_type,
+                            upload_limits["max_bytes"], upload_limits["max_pages"])
+        except UploadError as exc:
+            return JSONResponse(status_code=exc.http_status, content={"error": exc.code, "message": exc.message})
+        finally:
+            conn.close()
+        if not result.existing:
+            worker.enqueue(result.run_id)
+        return JSONResponse(status_code=201 if not result.existing else 200, content={
+            "run_id": result.run_id, "existing": result.existing,
+            "run_number": result.run_number, "run_display": display_number(result.run_number),
+        })
+
+    @app.post("/api/invoices")
+    async def upload_invoice(file: UploadFile) -> JSONResponse:
+        # Read at most one byte past the limit so an oversized upload is rejected without
+        # holding the whole file in memory.
+        data = await file.read(upload_limits["max_bytes"] + 1)
+        return await run_in_threadpool(_submit, file.filename or "upload.pdf", data, file.content_type)
+
+    def _sample_files() -> dict[str, Path]:
+        return {p.name: p for p in sorted(settings.samples_dir.glob("*.pdf"))}
+
+    @app.get("/api/samples")
+    def list_samples() -> list[dict]:
+        return [{"name": name, "size_bytes": p.stat().st_size} for name, p in _sample_files().items()]
+
+    @app.post("/api/samples/{name}/process")
+    async def process_sample(name: str) -> JSONResponse:
+        path = _sample_files().get(name)   # exact listed name only; no path traversal
+        if path is None:
+            return JSONResponse(status_code=404, content={"error": "sample_not_found", "message": "Sample not found"})
+        return await run_in_threadpool(_submit, name, path.read_bytes(), PDF_MIME)
+
+    @app.post("/api/runs/{run_id}/retry")
+    def retry_run(run_id: str) -> JSONResponse:
+        """FR-018, FR-094: an ERROR run is re-queued under the same run_id."""
+        conn = connect(settings.database_path)
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute("SELECT status FROM runs WHERE run_id = ?", (run_id,)).fetchone()
+            if row is None:
+                conn.execute("ROLLBACK")
+                return JSONResponse(status_code=404, content={"error": "run_not_found", "message": "Run not found"})
+            if row["status"] != "ERROR":
+                conn.execute("ROLLBACK")
+                return JSONResponse(status_code=409, content={"error": "not_retryable",
+                                                              "message": f"Only ERROR runs can be retried (run is {row['status']})"})
+            conn.execute("UPDATE runs SET status = 'QUEUED', error_message = NULL WHERE run_id = ?", (run_id,))
+            audit.add(conn, run_id, "retry", {})
+            conn.execute("COMMIT")
+        finally:
+            conn.close()
+        worker.enqueue(run_id)
+        return JSONResponse(status_code=202, content={"run_id": run_id, "status": "QUEUED"})
     # NFR-05: CORS restricted to the frontend origin.
     app.add_middleware(
         CORSMiddleware,

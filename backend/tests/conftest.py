@@ -14,6 +14,20 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 TEST_TOKEN = "test-reset-token"
 
 
+def pytest_addoption(parser):
+    parser.addoption("--run-live", action="store_true", default=False,
+                     help="run tests marked 'live' that call the real LLM provider (costs money)")
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--run-live"):
+        return
+    skip = pytest.mark.skip(reason="live provider test; use --run-live")
+    for item in items:
+        if "live" in item.keywords:
+            item.add_marker(skip)
+
+
 def fixture_records(name: str) -> list[dict]:
     return json.loads((SEED_DIR / name).read_text(encoding="utf-8"))["records"]
 

@@ -4,7 +4,12 @@ starlette==1.3.1
 uvicorn==0.49.0
 pydantic==2.13.4
 PyYAML==6.0.3
-python-dotenv==1.2.2   # used by `uvicorn --env-file`
+python-dotenv==1.2.2   # used by `uvicorn --env-file` and the live tests
+python-multipart==0.0.32  # FastAPI multipart uploads (POST /api/invoices)
+
+# Ingest and extraction (Day 2B)
+pdfplumber==0.11.10    # text layer (FR-010)
+google-genai==2.34.0   # Gemini adapter (FR-015)
 
 # Sample invoice generation and verification (invoice-templates/).
 # After installing: python -m playwright install chromium

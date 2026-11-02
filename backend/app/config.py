@@ -26,6 +26,13 @@ class Settings:
     llm_model: str | None = None
     anthropic_api_key: str | None = field(default=None, repr=False)
     gemini_api_key: str | None = field(default=None, repr=False)
+    samples_dir: Path = BACKEND_DIR / "samples"
+    # FR-014 cache. EXTRACTION_CACHE=off disables both reads and writes (determinism testing).
+    extraction_cache_enabled: bool = True
+
+    def secrets(self) -> list[str]:
+        """Secret values that must never appear in responses, logs or audit payloads."""
+        return [s for s in (self.demo_reset_token, self.anthropic_api_key, self.gemini_api_key) if s]
 
 
 def _env(name: str) -> str | None:
@@ -55,4 +62,6 @@ def load_settings(require_reset_token: bool = True) -> Settings:
         llm_model=_env("LLM_MODEL"),
         anthropic_api_key=_env("ANTHROPIC_API_KEY"),
         gemini_api_key=_env("GEMINI_API_KEY"),
+        samples_dir=Path(_env("SAMPLES_DIR") or BACKEND_DIR / "samples"),
+        extraction_cache_enabled=(_env("EXTRACTION_CACHE") or "on").lower() not in ("off", "0", "false", "no"),
     )

@@ -35,7 +35,7 @@ MANIFEST = HERE / "manifest.json"
 GSTIN_RE = re.compile(r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$")
 DATE_FORMATS = ("%d %b %Y", "%d/%m/%Y", "%d-%b-%Y", "%d %B %Y", "%Y-%m-%d")
 REQUIRED_TESTS = {"T-01", "T-02", "T-03", "T-04", "T-05", "T-06", "T-07", "T-08", "T-09",
-                  "T-12", "T-15", "T-16", "T-18"}
+                  "T-12", "T-15", "T-16", "T-18", "T-25a", "T-25b"}
 ALLOWANCE = 100  # paise, A-08
 
 # README_FIXTURES "Constraints the test invoice PDFs must respect" (load-bearing, stated exactly).
@@ -123,6 +123,9 @@ def check_bank(inv, master, fail):
     if mode == "match":
         if (acct, ifsc) != (m_acct, m_ifsc):
             fail(f"bank {acct}/{ifsc} != vendor master {m_acct}/{m_ifsc}")
+    elif mode == "mismatch":
+        if acct == m_acct or ifsc == m_ifsc:
+            fail(f"bank {acct}/{ifsc} should differ from master {m_acct}/{m_ifsc} in both account and IFSC")
     elif mode == "mismatch_ifsc_same_account":
         if acct != m_acct:
             fail(f"account {acct} should equal master {m_acct} (only IFSC differs, §8.7)")
