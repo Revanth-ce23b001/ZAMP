@@ -1,0 +1,423 @@
+# ClearMatch AP prototype policy (PRD v1.2.1 §14.1).
+#
+# Every value here is a [PA] prototype assumption: a threshold or policy chosen for
+# this prototype, NOT a Zamp policy and NOT a universal accounting rule.
+# policy_version = SHA-256 of this file's bytes, so ANY edit (even a comment) changes it.
+# Money is integer paise (100 paise = Rs 1). No secrets belong in this file.
+#
+# Each entry: name, value, unit, label ("[PA]"), meaning, source (as cited in PRD §14.1).
+
+policy_schema: 1
+
+assumptions:
+
+  # Currency accepted on invoices and POs.
+  A-01:
+    name: currency
+    value: INR
+    unit: ISO 4217 code
+    label: "[PA]"
+    meaning: INR only
+    source: Review §7
+
+  # Tax regime: CGST+SGST within a state, IGST across states.
+  A-02:
+    name: tax_regime
+    value:
+      regime: GST
+      intra_state_components: [cgst, sgst]
+      inter_state_components: [igst]
+    unit: none
+    label: "[PA]"
+    meaning: GST (CGST+SGST intra-state, IGST inter-state)
+    source: Review §7
+
+  # Buyer's GST state code; used for the regime check (FR-027, P1).
+  A-03:
+    name: buyer_state_code
+    value: "29"
+    unit: GST state code (Karnataka)
+    label: "[PA]"
+    meaning: Buyer is in Karnataka (29)
+    source: Review §7
+
+  # Size of the synthetic vendor master.
+  A-04:
+    name: vendor_count
+    value: 7
+    unit: vendors
+    label: "[PA]"
+    meaning: 7 synthetic vendors
+    source: Review §7
+
+  # Size of the synthetic PO master (PRD allows 10-12; seed has 11).
+  A-05:
+    name: purchase_order_count
+    value: 11
+    allowed_range: [10, 12]
+    unit: purchase orders
+    label: "[PA]"
+    meaning: 10-12 synthetic POs (11 in seed)
+    source: Review §7
+
+  # All data in the system is synthetic; this is what makes the public reset acceptable.
+  A-06:
+    name: data_is_synthetic
+    value: true
+    unit: boolean
+    label: "[PA]"
+    meaning: Entirely synthetic data
+    source: Notes §5, Review §7
+
+  # Fields that must be present on every invoice (FR-020). vendor_gstin OR vendor_name.
+  A-07:
+    name: mandatory_fields
+    value:
+      all_of: [invoice_number, invoice_date, total]
+      one_of: [vendor_gstin, vendor_name]
+      min_line_items: 1
+    unit: field names
+    label: "[PA]"
+    meaning: Invoice number, invoice date, vendor GSTIN or name, total, at least one line item
+    source: Review §7
+
+  # Allowance applied separately to each arithmetic equation E1-E4 (FR-023).
+  A-08:
+    name: arithmetic_allowance_paise
+    value: 100
+    unit: paise per equation (Rs 1)
+    label: "[PA]"
+    meaning: Rs 1 per equation
+    source: Review C6
+
+  # Freight, packing etc. are not taxed unless the invoice shows tax on them (FR-025).
+  A-09:
+    name: other_charges_taxable_by_default
+    value: false
+    unit: boolean
+    label: "[PA]"
+    meaning: Other charges are non-taxable unless the invoice explicitly shows tax on them
+    source: Review C6
+
+  # Invoice unit price may exceed PO unit price by at most this percentage; no lower limit (FR-066).
+  A-10:
+    name: unit_price_tolerance_pct
+    value: 1
+    lower_limit: null
+    unit: percent over PO unit price
+    label: "[PA]"
+    meaning: +1% over PO price; no limit under
+    source: Review C10
+
+  # Cumulative approved qty + this invoice qty must not exceed PO line qty (FR-067).
+  A-11:
+    name: quantity_overrun_allowed
+    value: 0
+    unit: units over PO line quantity
+    label: "[PA]"
+    meaning: Cumulative quantity <= PO line quantity; zero overrun
+    source: Review C10
+
+  # Cumulative value ceiling = PO total + min(pct of PO total, cap); applied ONCE per PO (FR-068).
+  A-12:
+    name: po_value_tolerance
+    value:
+      pct_of_po_total: 1
+      cap_paise: 100000
+      applied: once_per_po
+    unit: percent and paise (cap Rs 1,000)
+    label: "[PA]"
+    meaning: Cumulative approved <= PO total + min(1% of PO total, Rs 1,000), once per PO
+    source: Review C11
+
+  # PO totals and consumption are pre-tax (OD-2).
+  A-13:
+    name: po_value_basis
+    value: pre_tax_taxable_value
+    unit: none
+    label: "[PA]"
+    meaning: Pre-tax taxable value; PO total = sum of qty x unit price
+    source: This PRD (OD-2)
+
+  # Invoice-number normalisation for duplicate checks (FR-050, §9.5).
+  A-14:
+    name: invoice_number_normalisation
+    value:
+      case: upper
+      remove_characters: [" ", "-", "/", "."]
+    unit: characters
+    label: "[PA]"
+    meaning: Uppercase; remove space, hyphen, slash and dot only
+    source: Review C1
+
+  # Possible-duplicate tier (FR-052): same vendor, total within allowance, dates within window, same lines.
+  A-15:
+    name: possible_duplicate
+    value:
+      window_days: 7
+      total_allowance_paise: 100
+      require_same_line_signature: true
+    unit: days and paise
+    label: "[PA]"
+    meaning: Within 7 days, same total (+/- Rs 1), same line signature
+    source: Review C1
+
+  # Suffixes that mark a possible revised invoice (FR-053), matched after normalisation.
+  A-16:
+    name: revision_suffixes
+    value: [R, REV, A, B, V2]
+    unit: normalised suffixes
+    label: "[PA]"
+    meaning: R, REV, A, B, V2
+    source: Review C2
+
+  # Critical fields need confidence >= threshold AND deterministic corroboration (FR-017).
+  A-17:
+    name: critical_confidence_threshold
+    value: 0.85
+    unit: model-reported confidence (0-1, not calibrated)
+    label: "[PA]"
+    meaning: 0.85 for critical fields, plus deterministic corroboration
+    source: Review §7, G1
+
+  # Blocked vendor outcome (FR-033).
+  A-18:
+    name: blocked_vendor_outcome
+    value: REJECT
+    unit: decision status
+    label: "[PA]"
+    meaning: Blocked vendor -> REJECT
+    source: Review C21
+
+  # Unknown vendor outcome (FR-033).
+  A-19:
+    name: unknown_vendor_outcome
+    value: HOLD
+    unit: decision status
+    label: "[PA]"
+    meaning: Unknown vendor -> HOLD
+    source: Review C21
+
+  # Only committed APPROVE decisions consume PO balance; rechecked at every commit (FR-069, FR-091).
+  A-20:
+    name: po_consumption_basis
+    value: committed_approve_only
+    recheck_at_commit: true
+    unit: none
+    label: "[PA]"
+    meaning: Only APPROVE (committed) consumes; rechecked at every commit
+    source: Review C19
+
+  # Two-way PO match only; goods receipt is not checked.
+  A-21:
+    name: matching_scope
+    value: two_way
+    unit: none
+    label: "[PA]"
+    meaning: Two-way PO matching only
+    source: Review C20
+
+  # One worker, FIFO, one run at a time (FR-005, NFR-11).
+  A-22:
+    name: processing_mode
+    value: sequential_single_worker
+    unit: none
+    label: "[PA]"
+    meaning: Sequential, single worker
+    source: Review C18
+
+  # Upload validation (FR-001). 10 MB is taken as 10 x 1024 x 1024 bytes.
+  A-23:
+    name: upload_limits
+    value:
+      accepted_type: application/pdf
+      max_bytes: 10485760
+      max_pages: 5
+    unit: bytes and pages
+    label: "[PA]"
+    meaning: PDF, up to 10 MB, up to 5 pages
+    source: This PRD
+
+  # Below this average non-whitespace characters per page, the PDF is treated as a scan (FR-010/011).
+  A-24:
+    name: scan_detection_min_chars_per_page
+    value: 50
+    unit: non-whitespace characters per page (average)
+    label: "[PA]"
+    meaning: Fewer than 50 non-whitespace characters per page on average -> vision path
+    source: This PRD
+
+  # Invoice date plausibility (FR-021); failure raises LOW_EXTRACTION_CONFIDENCE.
+  A-25:
+    name: invoice_date_plausibility
+    value:
+      allow_future: false
+      max_age_days: 365
+      failure_code: LOW_EXTRACTION_CONFIDENCE
+      failure_message: "Invoice date implausible: check the PDF"
+    unit: days
+    label: "[PA]"
+    meaning: Not in the future; at most 365 days old; failure -> LOW_EXTRACTION_CONFIDENCE
+    source: Notes §6, this PRD for values
+
+  # Inferred PO candidate scoring, 0-100 (FR-061, FR-062, §9.7, OD-1). No LLM involvement.
+  A-26:
+    name: inferred_po_scoring
+    value:
+      weight_line_pairing: 60
+      weight_value_fits: 30
+      weight_date_window: 10
+      date_window_days: 180
+      candidate_threshold: 50
+      plausible_gap_points: 10
+    unit: score points and days
+    label: "[PA]"
+    meaning: 60/30/10 formula; show candidates >= 50; top two plausible if within 10 points
+    source: This PRD (OD-1); 10-point rule from Review C5
+
+  # Same normalised number as an original still on HOLD -> POSSIBLE_DUPLICATE, not REJECT (OD-3).
+  A-27:
+    name: duplicate_of_held_original
+    value: POSSIBLE_DUPLICATE
+    unit: reason code
+    label: "[PA]"
+    meaning: Same number as a HOLD original -> POSSIBLE_DUPLICATE (HOLD)
+    source: This PRD (OD-3)
+
+  # Document discount is spread across lines in proportion to line amount for consumption (§9.2).
+  A-28:
+    name: discount_allocation
+    value: pro_rata_by_line_amount
+    unit: none
+    label: "[PA]"
+    meaning: Pro-rata by line amount for consumption
+    source: This PRD
+
+  # Minimum override reason length (FR-101).
+  A-29:
+    name: override_reason_min_chars
+    value: 10
+    unit: characters
+    label: "[PA]"
+    meaning: Override reason at least 10 characters
+    source: This PRD
+
+  # extraction_cache table is never cleared by demo reset (FR-014, DEC-005).
+  A-30:
+    name: extraction_cache_survives_reset
+    value: true
+    unit: boolean
+    label: "[PA]"
+    meaning: Extraction cache preserved across demo reset
+    source: This PRD
+
+  # APPROVE and REJECT are final; only HOLD can be overridden (OD-6).
+  A-31:
+    name: overridable_statuses
+    value: [HOLD]
+    unit: decision statuses
+    label: "[PA]"
+    meaning: APPROVE and REJECT are not overridable
+    source: This PRD (OD-6)
+
+  # Description normalisation for line pairing (FR-064, §9.5.1, DEC-003).
+  A-32:
+    name: description_normalisation
+    value:
+      lowercase: true
+      keep_decimal_point_between_digits: true
+      other_punctuation: replace_with_space
+      join_number_to_following_unit: true
+      collapse_whitespace: true
+    unit: none
+    label: "[PA]"
+    meaning: Keep decimal point between digits; other punctuation removed; number joined to unit
+    source: DEC-003
+
+  # Demo reset rate limits, enforced by the backend in memory (FR-116).
+  A-33:
+    name: reset_rate_limits
+    value:
+      success_min_interval_seconds: 30
+      rejected_attempts_per_ip: 5
+      rejected_window_seconds: 900
+    unit: seconds and attempts
+    label: "[PA]"
+    meaning: 1 successful reset per 30 s globally; 5 rejected attempts per IP per 15 min
+    source: This PRD (FR-116)
+
+  # Typed confirmation for demo reset; body field confirm must equal this exactly (FR-116).
+  A-34:
+    name: reset_confirmation_phrase
+    value: RESET
+    unit: exact string
+    label: "[PA]"
+    meaning: User types RESET; body confirm must equal RESET
+    source: This PRD (FR-116)
+
+  # Date printed on the T-02 test PDF. Used by fixtures and sample PDFs only, NOT by business logic.
+  A-35:
+    name: t02_invoice_date
+    value: "2026-10-29"
+    unit: ISO date
+    label: "[PA]"
+    meaning: 29 Oct 2026, outside the 7-day window after INV-SL-0467 (14 Oct 2026)
+    source: Fixtures; this PRD
+
+# Other [PA] values stated in the PRD body but not numbered in §14.1.
+# Kept here because the PRD says all [PA] values live in policy.yaml.
+other_assumptions:
+
+  # Render resolution for scanned pages sent to the vision model (FR-011).
+  render_dpi:
+    value: 200
+    unit: dots per inch
+    label: "[PA]"
+    source: FR-011
+
+  # Retries after a malformed LLM JSON response, before run ERROR (FR-016).
+  extraction_malformed_json_retries:
+    value: 1
+    unit: retries
+    label: "[PA]"
+    source: FR-016
+
+  # Suffixes stripped from legal names before exact name matching (FR-030).
+  vendor_name_suffixes_removed:
+    value: [pvt, ltd, private, limited, llp]
+    unit: words
+    label: "[PA]"
+    source: FR-030
+
+  # Ledger statuses that duplicate checks compare against (FR-055).
+  duplicate_ledger_scope:
+    value: [APPROVE, HOLD]
+    exclude_confirmed_duplicates: true
+    unit: ledger statuses
+    label: "[PA]"
+    source: FR-055
+
+  # Live screen auto-navigates to the decision after this delay (§10.4).
+  ui_auto_navigate_seconds:
+    value: 2
+    unit: seconds
+    label: "[PA]"
+    source: PRD §10.4
+
+  # Provider spend limit set outside the app (NFR-06). Informational.
+  llm_spend_limit_usd_per_month:
+    value: 10
+    unit: USD per month
+    label: "[PA]"
+    source: NFR-06
+
+  # Demo performance targets (NFR-10).
+  performance_targets_seconds:
+    value:
+      cached_run: 3
+      uncached_text_run: 20
+      uncached_vision_run: 40
+      dashboard_load: 2
+    unit: seconds
+    label: "[PA]"
+    source: NFR-10

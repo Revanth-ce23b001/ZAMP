@@ -1,0 +1,11 @@
+# Pinned versions (tested on Python 3.14.5).
+fastapi==0.138.0
+starlette==1.3.1
+uvicorn==0.49.0
+pydantic==2.13.4
+PyYAML==6.0.3
+python-dotenv==1.2.2   # used by `uvicorn --env-file`
+
+# Tests
+pytest==9.1.1
+httpx==0.28.1          # FastAPI TestClient

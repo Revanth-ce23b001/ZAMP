@@ -1,0 +1,56 @@
+{
+  "_meta": {
+    "fixture_version": "fixtures-v1",
+    "generated_for": "ClearMatch AP PRD v1.2.1 (frozen 2026-11-02)",
+    "money_unit": "paise (integer)",
+    "buyer_state_code": "29",
+    "provenance_rule": "Every field not listed in _synthetic_fields or _derived_fields is specified in the PRD. Synthetic values are invented for this prototype and are not real vendor, bank or Zamp data."
+  },
+  "records": [
+    {
+      "run_id": null,
+      "ledger_id": "L-SEED-01",
+      "po_line_id": "PO-1041-1",
+      "quantity": 120,
+      "value": 12000000,
+      "committed_at": "2026-09-25T18:00:00+05:30",
+      "_derived_from": "L-SEED-01"
+    },
+    {
+      "run_id": null,
+      "ledger_id": "L-SEED-02",
+      "po_line_id": "PO-1041-1",
+      "quantity": 100,
+      "value": 10000000,
+      "committed_at": "2026-10-14T18:00:00+05:30",
+      "_derived_from": "L-SEED-02"
+    },
+    {
+      "run_id": null,
+      "ledger_id": "L-SEED-03",
+      "po_line_id": "PO-1043-1",
+      "quantity": 1,
+      "value": 4500000,
+      "committed_at": "2026-10-01T18:00:00+05:30",
+      "_derived_from": "L-SEED-03"
+    },
+    {
+      "run_id": null,
+      "ledger_id": "L-SEED-04",
+      "po_line_id": "PO-1047-1",
+      "quantity": 5,
+      "value": 9000000,
+      "committed_at": "2026-10-12T18:00:00+05:30",
+      "_derived_from": "L-SEED-04"
+    },
+    {
+      "run_id": null,
+      "ledger_id": "L-SEED-05",
+      "po_line_id": "PO-1048-1",
+      "quantity": 2,
+      "value": 5000000,
+      "committed_at": "2026-10-03T18:00:00+05:30",
+      "_derived_from": "L-SEED-05"
+    }
+  ]
+}

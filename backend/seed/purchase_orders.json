@@ -1,0 +1,427 @@
+{
+  "_meta": {
+    "fixture_version": "fixtures-v1",
+    "generated_for": "ClearMatch AP PRD v1.2.1 (frozen 2026-11-02)",
+    "money_unit": "paise (integer)",
+    "buyer_state_code": "29",
+    "provenance_rule": "Every field not listed in _synthetic_fields or _derived_fields is specified in the PRD. Synthetic values are invented for this prototype and are not real vendor, bank or Zamp data."
+  },
+  "records": [
+    {
+      "po_number": "PO-1041",
+      "vendor_id": "V001",
+      "po_date": "2026-09-10",
+      "currency": "INR",
+      "po_total": 30000000,
+      "lines": [
+        {
+          "po_line_id": "PO-1041-1",
+          "line_no": 1,
+          "item_code": "TMT-20",
+          "description": "TMT Bar 20mm",
+          "aliases": [
+            "tmt steel rod 20mm",
+            "tmt rod 20mm"
+          ],
+          "uom": "pcs",
+          "quantity": 300,
+          "unit_price": 100000,
+          "_synthetic_fields": [
+            "aliases",
+            "uom"
+          ]
+        }
+      ],
+      "_synthetic_fields": [
+        "po_date"
+      ],
+      "_derived_fields": [
+        "po_total"
+      ]
+    },
+    {
+      "po_number": "PO-1042",
+      "vendor_id": "V001",
+      "po_date": "2026-10-05",
+      "currency": "INR",
+      "po_total": 12500000,
+      "lines": [
+        {
+          "po_line_id": "PO-1042-1",
+          "line_no": 1,
+          "item_code": "TMT-12",
+          "description": "TMT Bar 12mm",
+          "aliases": [
+            "tmt steel rod 12mm",
+            "tmt rod 12mm"
+          ],
+          "uom": "pcs",
+          "quantity": 100,
+          "unit_price": 65000,
+          "_synthetic_fields": []
+        },
+        {
+          "po_line_id": "PO-1042-2",
+          "line_no": 2,
+          "item_code": "TMT-16",
+          "description": "TMT Bar 16mm",
+          "aliases": [
+            "tmt steel rod 16mm"
+          ],
+          "uom": "pcs",
+          "quantity": 50,
+          "unit_price": 120000,
+          "_synthetic_fields": []
+        }
+      ],
+      "_synthetic_fields": [],
+      "_derived_fields": [
+        "po_total"
+      ]
+    },
+    {
+      "po_number": "PO-1043",
+      "vendor_id": "V002",
+      "po_date": "2026-09-25",
+      "currency": "INR",
+      "po_total": 54000000,
+      "lines": [
+        {
+          "po_line_id": "PO-1043-1",
+          "line_no": 1,
+          "item_code": "RENT-BLR",
+          "description": "Office rent",
+          "aliases": [
+            "monthly office rent",
+            "office rent koramangala"
+          ],
+          "uom": "month",
+          "quantity": 12,
+          "unit_price": 4500000,
+          "_synthetic_fields": [
+            "aliases",
+            "uom"
+          ]
+        }
+      ],
+      "_synthetic_fields": [
+        "po_date"
+      ],
+      "_derived_fields": [
+        "po_total"
+      ]
+    },
+    {
+      "po_number": "PO-1049",
+      "vendor_id": "V002",
+      "po_date": "2026-09-25",
+      "currency": "INR",
+      "po_total": 21600000,
+      "lines": [
+        {
+          "po_line_id": "PO-1049-1",
+          "line_no": 1,
+          "item_code": "HK-SVC",
+          "description": "Housekeeping",
+          "aliases": [
+            "housekeeping services",
+            "monthly housekeeping"
+          ],
+          "uom": "month",
+          "quantity": 12,
+          "unit_price": 1800000,
+          "_synthetic_fields": [
+            "aliases",
+            "uom"
+          ]
+        }
+      ],
+      "_synthetic_fields": [
+        "po_date"
+      ],
+      "_derived_fields": [
+        "po_total"
+      ]
+    },
+    {
+      "po_number": "PO-1044",
+      "vendor_id": "V003",
+      "po_date": "2026-10-08",
+      "currency": "INR",
+      "po_total": 8400000,
+      "lines": [
+        {
+          "po_line_id": "PO-1044-1",
+          "line_no": 1,
+          "item_code": "CB-5PLY",
+          "description": "5-ply box",
+          "aliases": [
+            "5ply corrugated box",
+            "corrugated box 5ply"
+          ],
+          "uom": "pcs",
+          "quantity": 2000,
+          "unit_price": 4200,
+          "_synthetic_fields": [
+            "aliases",
+            "uom"
+          ]
+        }
+      ],
+      "_synthetic_fields": [
+        "po_date"
+      ],
+      "_derived_fields": [
+        "po_total"
+      ]
+    },
+    {
+      "po_number": "PO-1031",
+      "vendor_id": "V004",
+      "po_date": "2026-10-01",
+      "currency": "INR",
+      "po_total": 81500000,
+      "lines": [
+        {
+          "po_line_id": "PO-1031-1",
+          "line_no": 1,
+          "item_code": "LAP-14",
+          "description": "Laptop 14in i5",
+          "aliases": [
+            "laptop 14in",
+            "14in laptop i5"
+          ],
+          "uom": "pcs",
+          "quantity": 10,
+          "unit_price": 6200000,
+          "_synthetic_fields": [
+            "aliases",
+            "uom",
+            "description"
+          ]
+        },
+        {
+          "po_line_id": "PO-1031-2",
+          "line_no": 2,
+          "item_code": "MON-24",
+          "description": "Monitor 24in",
+          "aliases": [
+            "monitor 24in",
+            "24in monitor"
+          ],
+          "uom": "pcs",
+          "quantity": 10,
+          "unit_price": 1150000,
+          "_synthetic_fields": [
+            "aliases",
+            "uom",
+            "description"
+          ]
+        },
+        {
+          "po_line_id": "PO-1031-3",
+          "line_no": 3,
+          "item_code": "DOCK-USB",
+          "description": "USB-C docking station",
+          "aliases": [
+            "usb c dock",
+            "docking station usb c"
+          ],
+          "uom": "pcs",
+          "quantity": 10,
+          "unit_price": 800000,
+          "_synthetic_fields": [
+            "aliases",
+            "uom",
+            "description"
+          ]
+        }
+      ],
+      "_synthetic_fields": [
+        "po_date"
+      ],
+      "_derived_fields": [
+        "po_total"
+      ]
+    },
+    {
+      "po_number": "PO-1036",
+      "vendor_id": "V004",
+      "po_date": "2026-10-12",
+      "currency": "INR",
+      "po_total": 36750000,
+      "lines": [
+        {
+          "po_line_id": "PO-1036-1",
+          "line_no": 1,
+          "item_code": "LAP-14",
+          "description": "Laptop 14in i5",
+          "aliases": [
+            "laptop 14in",
+            "14in laptop i5"
+          ],
+          "uom": "pcs",
+          "quantity": 5,
+          "unit_price": 6200000,
+          "_synthetic_fields": [
+            "aliases",
+            "uom",
+            "description"
+          ]
+        },
+        {
+          "po_line_id": "PO-1036-2",
+          "line_no": 2,
+          "item_code": "MON-24",
+          "description": "Monitor 24in",
+          "aliases": [
+            "monitor 24in",
+            "24in monitor"
+          ],
+          "uom": "pcs",
+          "quantity": 5,
+          "unit_price": 1150000,
+          "_synthetic_fields": [
+            "aliases",
+            "uom",
+            "description"
+          ]
+        }
+      ],
+      "_synthetic_fields": [
+        "po_date"
+      ],
+      "_derived_fields": [
+        "po_total"
+      ]
+    },
+    {
+      "po_number": "PO-1045",
+      "vendor_id": "V005",
+      "po_date": "2026-10-06",
+      "currency": "INR",
+      "po_total": 10000000,
+      "lines": [
+        {
+          "po_line_id": "PO-1045-1",
+          "line_no": 1,
+          "item_code": "CBL-25",
+          "description": "Copper cable 2.5 sqmm coil",
+          "aliases": [
+            "copper cable 2.5sqmm",
+            "2.5sqmm copper cable coil"
+          ],
+          "uom": "coil",
+          "quantity": 100,
+          "unit_price": 100000,
+          "_synthetic_fields": [
+            "aliases",
+            "uom"
+          ]
+        }
+      ],
+      "_synthetic_fields": [
+        "po_date"
+      ],
+      "_derived_fields": [
+        "po_total"
+      ]
+    },
+    {
+      "po_number": "PO-1046",
+      "vendor_id": "V006",
+      "po_date": "2026-09-15",
+      "currency": "INR",
+      "po_total": 15000000,
+      "lines": [
+        {
+          "po_line_id": "PO-1046-1",
+          "line_no": 1,
+          "item_code": "FRT-LCL",
+          "description": "Freight",
+          "aliases": [
+            "lcl freight",
+            "freight charges"
+          ],
+          "uom": "trip",
+          "quantity": 10,
+          "unit_price": 1500000,
+          "_synthetic_fields": [
+            "aliases",
+            "uom"
+          ]
+        }
+      ],
+      "_synthetic_fields": [
+        "po_date"
+      ],
+      "_derived_fields": [
+        "po_total"
+      ]
+    },
+    {
+      "po_number": "PO-1047",
+      "vendor_id": "V007",
+      "po_date": "2026-09-20",
+      "currency": "INR",
+      "po_total": 36000000,
+      "lines": [
+        {
+          "po_line_id": "PO-1047-1",
+          "line_no": 1,
+          "item_code": "SOLV-IPA",
+          "description": "IPA 200L drum",
+          "aliases": [
+            "isopropyl alcohol 200l drum",
+            "ipa drum"
+          ],
+          "uom": "drum",
+          "quantity": 20,
+          "unit_price": 1800000,
+          "_synthetic_fields": [
+            "aliases",
+            "uom"
+          ]
+        }
+      ],
+      "_synthetic_fields": [
+        "po_date"
+      ],
+      "_derived_fields": [
+        "po_total"
+      ]
+    },
+    {
+      "po_number": "PO-1048",
+      "vendor_id": "V007",
+      "po_date": "2026-09-22",
+      "currency": "INR",
+      "po_total": 25000000,
+      "lines": [
+        {
+          "po_line_id": "PO-1048-1",
+          "line_no": 1,
+          "item_code": "SOLV-ACE",
+          "description": "Acetone 200L drum",
+          "aliases": [
+            "acetone drum",
+            "acetone 200l drum"
+          ],
+          "uom": "drum",
+          "quantity": 10,
+          "unit_price": 2500000,
+          "_synthetic_fields": [
+            "aliases",
+            "uom"
+          ]
+        }
+      ],
+      "_synthetic_fields": [
+        "po_date"
+      ],
+      "_derived_fields": [
+        "po_total"
+      ]
+    }
+  ]
+}

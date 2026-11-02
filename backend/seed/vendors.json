@@ -1,0 +1,165 @@
+{
+  "_meta": {
+    "fixture_version": "fixtures-v1",
+    "generated_for": "ClearMatch AP PRD v1.2.1 (frozen 2026-11-02)",
+    "money_unit": "paise (integer)",
+    "buyer_state_code": "29",
+    "provenance_rule": "Every field not listed in _synthetic_fields or _derived_fields is specified in the PRD. Synthetic values are invented for this prototype and are not real vendor, bank or Zamp data."
+  },
+  "records": [
+    {
+      "vendor_id": "V001",
+      "legal_name": "Sri Lakshmi Steel Traders",
+      "gstin": "29AABCS1234F1Z5",
+      "state_code": "29",
+      "state_name": "Karnataka",
+      "bank_account_number": "50200012341234",
+      "ifsc": "HDFC0001234",
+      "trusted_contact_name": "Ravi Kumar",
+      "trusted_contact_phone": "+91 98450 22114",
+      "trusted_contact_email": "accounts@srilakshmisteel.example",
+      "status": "active",
+      "_synthetic_fields": [
+        "trusted_contact_phone",
+        "trusted_contact_email"
+      ],
+      "_derived_fields": [
+        "bank_account_number",
+        "ifsc",
+        "trusted_contact_name"
+      ],
+      "_notes": "Bank details derived from PRD 8.4 extraction example (T-01 'bank matches'); contact name from Review C13 example banner."
+    },
+    {
+      "vendor_id": "V002",
+      "legal_name": "Prestige Workspace Rentals LLP",
+      "gstin": "29AAKFP5678K1Z2",
+      "state_code": "29",
+      "state_name": "Karnataka",
+      "bank_account_number": "000405512378",
+      "ifsc": "ICIC0002345",
+      "trusted_contact_name": "Anita Shenoy",
+      "trusted_contact_phone": "+91 99001 34762",
+      "trusted_contact_email": "billing@prestigeworkspace.example",
+      "status": "active",
+      "_synthetic_fields": [
+        "gstin",
+        "bank_account_number",
+        "ifsc",
+        "trusted_contact_name",
+        "trusted_contact_phone",
+        "trusted_contact_email"
+      ],
+      "_derived_fields": [],
+      "_notes": "Test invoices for V002 (T-06, T-11) carry no bank details, so bank check is Not Checked."
+    },
+    {
+      "vendor_id": "V003",
+      "legal_name": "Coromandel Packaging Pvt Ltd",
+      "gstin": "33AACCC4321M1Z8",
+      "state_code": "33",
+      "state_name": "Tamil Nadu",
+      "bank_account_number": "918020045514471",
+      "ifsc": "HDFC0005512",
+      "trusted_contact_name": "Meena Raghavan",
+      "trusted_contact_phone": "+91 98400 11223",
+      "trusted_contact_email": "accounts@coromandelpack.example",
+      "status": "active",
+      "_synthetic_fields": [],
+      "_derived_fields": [],
+      "_notes": "All values from PRD 8.2. T-03 invoice carries account ending 4471 with IFSC ICIC0005678 (mismatch)."
+    },
+    {
+      "vendor_id": "V004",
+      "legal_name": "Nandi IT Solutions Pvt Ltd",
+      "gstin": "29AAECN7788P1Z1",
+      "state_code": "29",
+      "state_name": "Karnataka",
+      "bank_account_number": "31245678901",
+      "ifsc": "SBIN0040211",
+      "trusted_contact_name": "Prakash Gowda",
+      "trusted_contact_phone": "+91 97411 50893",
+      "trusted_contact_email": "finance@nandiit.example",
+      "status": "active",
+      "_synthetic_fields": [
+        "gstin",
+        "bank_account_number",
+        "ifsc",
+        "trusted_contact_name",
+        "trusted_contact_phone",
+        "trusted_contact_email"
+      ],
+      "_derived_fields": [],
+      "_notes": ""
+    },
+    {
+      "vendor_id": "V005",
+      "legal_name": "Kaveri Electricals",
+      "gstin": "29ABJPK2345Q1Z6",
+      "state_code": "29",
+      "state_name": "Karnataka",
+      "bank_account_number": "1712005008123",
+      "ifsc": "KKBK0008012",
+      "trusted_contact_name": "Suresh Kaveriappa",
+      "trusted_contact_phone": "+91 94480 67215",
+      "trusted_contact_email": "kaverielectricals@example.com",
+      "status": "active",
+      "_synthetic_fields": [
+        "gstin",
+        "bank_account_number",
+        "ifsc",
+        "trusted_contact_name",
+        "trusted_contact_phone",
+        "trusted_contact_email"
+      ],
+      "_derived_fields": [],
+      "_notes": "T-25(a) invoice must carry different bank details to trigger BANK_DETAILS_MISMATCH."
+    },
+    {
+      "vendor_id": "V006",
+      "legal_name": "Malnad Logistics",
+      "gstin": "29AAGFM9012R1Z4",
+      "state_code": "29",
+      "state_name": "Karnataka",
+      "bank_account_number": "0645201004567",
+      "ifsc": "CNRB0001456",
+      "trusted_contact_name": "Girish Hegde",
+      "trusted_contact_phone": "+91 96860 41178",
+      "trusted_contact_email": "ops@malnadlogistics.example",
+      "status": "blocked",
+      "_synthetic_fields": [
+        "gstin",
+        "bank_account_number",
+        "ifsc",
+        "trusted_contact_name",
+        "trusted_contact_phone",
+        "trusted_contact_email"
+      ],
+      "_derived_fields": [],
+      "_notes": "Status 'blocked' from PRD 8.9 (T-18)."
+    },
+    {
+      "vendor_id": "V007",
+      "legal_name": "Godavari Chemicals Ltd",
+      "gstin": "37AADCG3456S1Z9",
+      "state_code": "37",
+      "state_name": "Andhra Pradesh",
+      "bank_account_number": "917020038813317",
+      "ifsc": "UTIB0003317",
+      "trusted_contact_name": "Lakshmi Prasanna",
+      "trusted_contact_phone": "+91 98490 72631",
+      "trusted_contact_email": "ar@godavarichem.example",
+      "status": "active",
+      "_synthetic_fields": [
+        "gstin",
+        "bank_account_number",
+        "ifsc",
+        "trusted_contact_name",
+        "trusted_contact_phone",
+        "trusted_contact_email"
+      ],
+      "_derived_fields": [],
+      "_notes": "Inter-state to Karnataka buyer: IGST."
+    }
+  ]
+}

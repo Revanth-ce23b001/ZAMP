@@ -1,0 +1,185 @@
+{
+  "_meta": {
+    "fixture_version": "fixtures-v1",
+    "generated_for": "ClearMatch AP PRD v1.2.1 (frozen 2026-11-02)",
+    "money_unit": "paise (integer)",
+    "buyer_state_code": "29",
+    "provenance_rule": "Every field not listed in _synthetic_fields or _derived_fields is specified in the PRD. Synthetic values are invented for this prototype and are not real vendor, bank or Zamp data."
+  },
+  "records": [
+    {
+      "ledger_id": "L-SEED-01",
+      "run_id": null,
+      "source": "seed",
+      "vendor_id": "V001",
+      "invoice_number_raw": "INV-SL-0451",
+      "invoice_number_normalised": "INVSL0451",
+      "invoice_date": "2026-09-25",
+      "taxable_value": 12000000,
+      "cgst": 1080000,
+      "sgst": 1080000,
+      "igst": 0,
+      "total": 14160000,
+      "po_number": "PO-1041",
+      "line_signature": [
+        {
+          "key": "TMT-20",
+          "qty": 120
+        }
+      ],
+      "status": "APPROVE",
+      "duplicate_of": null,
+      "_synthetic_fields": [
+        "invoice_date"
+      ],
+      "_derived_fields": [
+        "taxable_value",
+        "cgst",
+        "sgst",
+        "igst",
+        "total",
+        "invoice_number_normalised",
+        "line_signature"
+      ],
+      "_notes": "GST at 18% (CGST 9% + SGST 9% intra-state; IGST 18% inter-state) is a fixture assumption. Quantities and PO links from PRD 8.9."
+    },
+    {
+      "ledger_id": "L-SEED-02",
+      "run_id": null,
+      "source": "seed",
+      "vendor_id": "V001",
+      "invoice_number_raw": "INV-SL-0467",
+      "invoice_number_normalised": "INVSL0467",
+      "invoice_date": "2026-10-14",
+      "taxable_value": 10000000,
+      "cgst": 900000,
+      "sgst": 900000,
+      "igst": 0,
+      "total": 11800000,
+      "po_number": "PO-1041",
+      "line_signature": [
+        {
+          "key": "TMT-20",
+          "qty": 100
+        }
+      ],
+      "status": "APPROVE",
+      "duplicate_of": null,
+      "_synthetic_fields": [
+        "invoice_date"
+      ],
+      "_derived_fields": [
+        "taxable_value",
+        "cgst",
+        "sgst",
+        "igst",
+        "total",
+        "invoice_number_normalised",
+        "line_signature"
+      ],
+      "_notes": "GST at 18% (CGST 9% + SGST 9% intra-state; IGST 18% inter-state) is a fixture assumption. Quantities and PO links from PRD 8.9."
+    },
+    {
+      "ledger_id": "L-SEED-03",
+      "run_id": null,
+      "source": "seed",
+      "vendor_id": "V002",
+      "invoice_number_raw": "INV-0912",
+      "invoice_number_normalised": "INV0912",
+      "invoice_date": "2026-10-01",
+      "taxable_value": 4500000,
+      "cgst": 405000,
+      "sgst": 405000,
+      "igst": 0,
+      "total": 5310000,
+      "po_number": "PO-1043",
+      "line_signature": [
+        {
+          "key": "RENT-BLR",
+          "qty": 1
+        }
+      ],
+      "status": "APPROVE",
+      "duplicate_of": null,
+      "_synthetic_fields": [],
+      "_derived_fields": [
+        "taxable_value",
+        "cgst",
+        "sgst",
+        "igst",
+        "total",
+        "invoice_number_normalised",
+        "line_signature"
+      ],
+      "_notes": "GST at 18% (CGST 9% + SGST 9% intra-state; IGST 18% inter-state) is a fixture assumption. Quantities and PO links from PRD 8.9."
+    },
+    {
+      "ledger_id": "L-SEED-04",
+      "run_id": null,
+      "source": "seed",
+      "vendor_id": "V007",
+      "invoice_number_raw": "INV-2041",
+      "invoice_number_normalised": "INV2041",
+      "invoice_date": "2026-10-12",
+      "taxable_value": 9000000,
+      "cgst": 0,
+      "sgst": 0,
+      "igst": 1620000,
+      "total": 10620000,
+      "po_number": "PO-1047",
+      "line_signature": [
+        {
+          "key": "SOLV-IPA",
+          "qty": 5
+        }
+      ],
+      "status": "APPROVE",
+      "duplicate_of": null,
+      "_synthetic_fields": [],
+      "_derived_fields": [
+        "taxable_value",
+        "cgst",
+        "sgst",
+        "igst",
+        "total",
+        "invoice_number_normalised",
+        "line_signature"
+      ],
+      "_notes": "GST at 18% (CGST 9% + SGST 9% intra-state; IGST 18% inter-state) is a fixture assumption. Quantities and PO links from PRD 8.9."
+    },
+    {
+      "ledger_id": "L-SEED-05",
+      "run_id": null,
+      "source": "seed",
+      "vendor_id": "V007",
+      "invoice_number_raw": "INV-GC-0921",
+      "invoice_number_normalised": "INVGC0921",
+      "invoice_date": "2026-10-03",
+      "taxable_value": 5000000,
+      "cgst": 0,
+      "sgst": 0,
+      "igst": 900000,
+      "total": 5900000,
+      "po_number": "PO-1048",
+      "line_signature": [
+        {
+          "key": "SOLV-ACE",
+          "qty": 2
+        }
+      ],
+      "status": "APPROVE",
+      "duplicate_of": null,
+      "_synthetic_fields": [],
+      "_derived_fields": [
+        "taxable_value",
+        "cgst",
+        "sgst",
+        "igst",
+        "total",
+        "invoice_number_normalised",
+        "line_signature"
+      ],
+      "_notes": "GST at 18% (CGST 9% + SGST 9% intra-state; IGST 18% inter-state) is a fixture assumption. Quantities and PO links from PRD 8.9."
+    }
+  ]
+}
