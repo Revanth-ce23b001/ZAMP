@@ -87,6 +87,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         result = await run_in_threadpool(
             request.app.state.reset_service.handle,
             client_ip, request.headers.get("X-Demo-Reset-Token"), body,
+            request.headers.get("X-Client-IP"),   # trusted only with a valid token (DEC-011)
         )
         return JSONResponse(status_code=result.status_code, content=result.body)
 

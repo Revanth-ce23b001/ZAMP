@@ -73,6 +73,23 @@ Frontend (from `frontend/`):
 
 The backend applies migrations and seeds an empty database on startup (NFR-12).
 
+### Sample invoices (`invoice-templates/`)
+
+The test PDFs in `backend/samples/` are generated from `invoice-templates/manifest.json`
+(one entry per invoice; values exactly as printed) using four layouts in
+`invoice-templates/layouts/`. Adding an invoice is a manifest entry, not code.
+
+| Task | Command (from the repo root) |
+|---|---|
+| One-time setup | `python -m pip install -r backend/requirements.txt` then `python -m playwright install chromium` |
+| Generate all PDFs + `SHA256SUMS` | `python invoice-templates/generate.py` (`--only T-01,T-05` for a subset) |
+| Check rebuilds are byte-identical | `python invoice-templates/generate.py --check` |
+| Verify PDFs against the fixtures | `python invoice-templates/verify.py` (also run by `backend/tests/test_samples.py`) |
+
+Values the PRD does not give are recorded in `DECISIONS.md` DEC-012 and listed per invoice
+under `provenance.proposed` in the manifest. Byte-identical output holds for the same
+machine and pinned Chromium build; the committed PDFs are the reference copies.
+
 ### Demo reset
 
 Open **Reset demo data** in the top bar, type `RESET`, confirm. The browser calls the

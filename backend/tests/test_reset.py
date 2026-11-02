@@ -45,9 +45,14 @@ def rc(settings, clock):
         yield c
 
 
-def post(client, body=GOOD, token=TEST_TOKEN):
+def post(client, body=GOOD, token=TEST_TOKEN, client_ip=None):
     headers = {} if token is None else {"X-Demo-Reset-Token": token}
+    if client_ip is not None:
+        headers["X-Client-IP"] = client_ip
     return client.post(URL, json=body, headers=headers)
+
+
+BAD_CONFIRM = {"confirm": "no", "requester_label": "x"}
 
 
 # ---------- helpers ----------
@@ -245,6 +250,50 @@ def test_rate_limited_attempts_do_not_extend_reject_window(rc, clock):
     assert post(rc).status_code == 429
     clock.advance(60)                                     # 15 min after the first five
     assert post(rc).status_code == 200
+
+
+# ---------- X-Client-IP buckets (DEC-011) ----------
+
+def test_forwarded_ip_with_valid_token_gets_its_own_bucket(rc):
+    for _ in range(5):
+        assert post(rc, body=BAD_CONFIRM, client_ip="203.0.113.10").status_code == 400
+    assert post(rc, body=BAD_CONFIRM, client_ip="203.0.113.10").status_code == 429
+    assert post(rc, client_ip="203.0.113.10").status_code == 429      # A stays locked out
+    assert post(rc, client_ip="198.51.100.7").status_code == 200       # B unaffected
+    # The socket-address bucket was never touched either.
+    assert post(rc, body=BAD_CONFIRM).status_code == 400
+
+
+@pytest.mark.parametrize("token", [None, "wrong-token"])
+def test_forwarded_ip_ignored_without_valid_token(rc, token):
+    # Five rejected attempts, each claiming a different X-Client-IP, all land in the socket bucket.
+    for i in range(5):
+        assert post(rc, token=token, client_ip=f"203.0.113.{i}").status_code == 401
+    r = post(rc, token=token, client_ip="203.0.113.99")
+    assert r.status_code == 429
+    assert r.json()["error"] == "rate_limit_rejected_attempts"
+    # A valid-token request without the header is also bucketed by socket address: locked out.
+    assert post(rc).status_code == 429
+    # A valid-token request that carries its own X-Client-IP uses that bucket instead.
+    assert post(rc, client_ip="198.51.100.7").status_code == 200
+
+
+@pytest.mark.parametrize("bad_ip", ["not-an-ip", "1.2.3.4, 5.6.7.8", "", "999.1.1.1"])
+def test_malformed_forwarded_ip_falls_back_to_socket(rc, bad_ip):
+    for _ in range(5):
+        post(rc, body=BAD_CONFIRM, client_ip=bad_ip)
+    assert post(rc, body=BAD_CONFIRM).status_code == 429     # same socket bucket
+
+
+def test_forwarded_ip_never_logged_or_stored(rc, caplog):
+    caplog.set_level(logging.DEBUG)
+    marker = "192.0.2.123"
+    post(rc, body=BAD_CONFIRM, client_ip=marker)
+    post(rc, token="wrong", client_ip=marker)
+    post(rc, client_ip=marker)
+    assert marker not in caplog.text
+    for row in reset_rows(rc.db_path):
+        assert marker not in json.dumps(row)
 
 
 # ---------- audit log ----------

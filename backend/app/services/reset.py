@@ -7,6 +7,7 @@ rate limits. Every attempt writes exactly one demo_resets row:
 The token is never written to a response, a log line or demo_resets.detail.
 """
 import hmac
+import ipaddress
 import json
 import logging
 import sqlite3
@@ -61,31 +62,39 @@ class ResetService:
 
     # ------------------------------------------------------------------ entry point
 
-    def handle(self, client_ip: str, token: str | None, body: object) -> ResetResult:
-        """Apply the checks in the order fixed by FR-116, then reset. Serialised by a lock."""
+    def handle(self, client_ip: str, token: str | None, body: object,
+               forwarded_client_ip: str | None = None) -> ResetResult:
+        """Apply the checks in the order fixed by FR-116, then reset. Serialised by a lock.
+
+        client_ip is the socket address. forwarded_client_ip is the X-Client-IP header set by
+        the Next.js reset route; it is used for the rejected-attempt bucket only when the
+        request carries a valid token (DEC-011). It is never logged or stored.
+        """
         with self._lock:
             now = self._clock()
             label = self._label(body)
             confirm = body.get("confirm") if isinstance(body, dict) else None
+            token_ok = self._token_ok(token)
+            bucket = self._bucket(client_ip, forwarded_client_ip, token_ok)
 
-            # 1. Too many rejected attempts from this IP -> 429 (before the token check, so the
-            #    sixth rejected attempt returns 429, not 401).
-            if self._rejected_count(client_ip, now) >= self._max_rejected:
+            # 1. Too many rejected attempts from this client -> 429 (before the token check, so
+            #    the sixth rejected attempt returns 429, not 401).
+            if self._rejected_count(bucket, now) >= self._max_rejected:
                 return self._refuse(429, "rate_limited", "rate_limit_rejected_attempts", label, client_ip,
                                     "Too many rejected reset attempts from this address. Try again later.")
             # 2. Token.
-            if not self._token_ok(token):
-                self._rejected[client_ip].append(now)
+            if not token_ok:
+                self._rejected[bucket].append(now)
                 return self._refuse(401, "rejected", "invalid_token", label, client_ip,
                                     "Missing or invalid reset token.")
             # 3. Typed confirmation (must equal the phrase exactly).
             if confirm != self._confirm_phrase:
-                self._rejected[client_ip].append(now)
+                self._rejected[bucket].append(now)
                 return self._refuse(400, "rejected", "confirmation_mismatch", label, client_ip,
                                     f'Confirmation must be exactly "{self._confirm_phrase}".')
             # 3b. requester_label is required (§8.8). Treated as a bad request like 3.
             if label == UNKNOWN_LABEL:
-                self._rejected[client_ip].append(now)
+                self._rejected[bucket].append(now)
                 return self._refuse(400, "rejected", "missing_requester_label", label, client_ip,
                                     "requester_label is required.")
             # 4. At most one successful reset per interval, globally.
@@ -107,6 +116,20 @@ class ResetService:
         if not token or not expected:
             return False
         return hmac.compare_digest(token.encode("utf-8"), expected.encode("utf-8"))
+
+    @staticmethod
+    def _bucket(client_ip: str, forwarded_client_ip: str | None, token_ok: bool) -> str:
+        """Rejected-attempt bucket key (DEC-011).
+
+        Only the trusted Next.js route holds the token, so X-Client-IP is believed only on
+        requests with a valid token. Everything else is bucketed by its socket address.
+        """
+        if token_ok and forwarded_client_ip:
+            try:
+                return "fwd:" + str(ipaddress.ip_address(forwarded_client_ip.strip()))
+            except ValueError:
+                pass
+        return "sock:" + client_ip
 
     def _rejected_count(self, ip: str, now: float) -> int:
         q = self._rejected[ip]

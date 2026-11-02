@@ -1,0 +1,303 @@
+{
+  "_meta": {
+    "manifest_version": 1,
+    "description": "One entry per sample invoice. Values are exactly what is PRINTED on the PDF (rupee strings, not paise). generate.py renders them; verify.py checks them against backend/seed fixtures and the PRD. Adding an invoice is a new entry here, not new code.",
+    "sources": "PRD v1.2.1 §8.4, §9.10, §13.1, §13.2; backend/seed fixtures-v1; DECISIONS.md DEC-012 for values marked in 'proposed'.",
+    "buyer": "Demo Buyer (synthetic), Karnataka (29)",
+    "output_dir": "backend/samples",
+    "pdf_metadata_date": "D:20261102000000+05'30'"
+  },
+  "invoices": [
+    {
+      "test_id": "T-01",
+      "file": "T01_happy_path_SLST-2026-0512.pdf",
+      "layout": "classic",
+      "vendor": {"vendor_id": "V001", "legal_name": "Sri Lakshmi Steel Traders", "gstin": "29AABCS1234F1Z5", "state_code": "29", "state_name": "Karnataka"},
+      "invoice_number": "SLST/2026/0512",
+      "invoice_date": "2026-10-28",
+      "po_reference": "PO-1042",
+      "lines": [
+        {"item_code": null, "description": "TMT Steel Rod 12 mm", "quantity": 80, "uom": "pcs", "unit_price": "650.00", "amount": "52000.00"},
+        {"item_code": "TMT-16", "description": "TMT Bar 16mm", "quantity": 40, "uom": "pcs", "unit_price": "1200.00", "amount": "48000.00"}
+      ],
+      "subtotal": "100000.00",
+      "discount": "5000.00",
+      "taxable_value": "95000.00",
+      "tax": {"cgst": {"rate": 9, "amount": "8550.00"}, "sgst": {"rate": 9, "amount": "8550.00"}, "igst": null},
+      "other_charges": [{"label": "Freight", "amount": "1750.40"}],
+      "round_off": "-0.40",
+      "total": "113850.00",
+      "bank": {"account_number": "50200012341234", "ifsc": "HDFC0001234"},
+      "expect": {"vendor_in_master": true, "bank": "match", "po": "explicit", "duplicate": "none"},
+      "provenance": {"sources": ["PRD §13.1 T-01", "PRD §8.4 extraction example", "PRD §9.10.1"], "proposed": []}
+    },
+    {
+      "test_id": "T-02",
+      "file": "T02_split_po_overrun_INV-SL-0489.pdf",
+      "layout": "classic",
+      "vendor": {"vendor_id": "V001", "legal_name": "Sri Lakshmi Steel Traders", "gstin": "29AABCS1234F1Z5", "state_code": "29", "state_name": "Karnataka"},
+      "invoice_number": "INV-SL-0489",
+      "invoice_date": "2026-10-29",
+      "po_reference": "PO-1041",
+      "lines": [
+        {"item_code": "TMT-20", "description": "TMT Bar 20mm", "quantity": 100, "uom": "pcs", "unit_price": "1000.00", "amount": "100000.00"}
+      ],
+      "subtotal": "100000.00",
+      "discount": null,
+      "taxable_value": "100000.00",
+      "tax": {"cgst": {"rate": 9, "amount": "9000.00"}, "sgst": {"rate": 9, "amount": "9000.00"}, "igst": null},
+      "other_charges": [],
+      "round_off": null,
+      "total": "118000.00",
+      "bank": {"account_number": "50200012341234", "ifsc": "HDFC0001234"},
+      "expect": {"vendor_in_master": true, "bank": "match", "po": "explicit", "duplicate": "similar_note"},
+      "provenance": {"sources": ["PRD §13.1 T-02", "PRD §9.10.4", "A-35"], "proposed": ["bank"]}
+    },
+    {
+      "test_id": "T-03",
+      "file": "T03_bank_mismatch_CPPL-7781.pdf",
+      "layout": "bill",
+      "vendor": {"vendor_id": "V003", "legal_name": "Coromandel Packaging Pvt Ltd", "gstin": "33AACCC4321M1Z8", "state_code": "33", "state_name": "Tamil Nadu"},
+      "invoice_number": "CPPL/7781",
+      "invoice_date": "2026-10-30",
+      "po_reference": "PO-1044",
+      "lines": [
+        {"item_code": "CB-5PLY", "description": "5-ply box", "quantity": 1000, "uom": "pcs", "unit_price": "42.00", "amount": "42000.00"}
+      ],
+      "subtotal": "42000.00",
+      "discount": null,
+      "taxable_value": "42000.00",
+      "tax": {"cgst": null, "sgst": null, "igst": {"rate": 18, "amount": "7560.00"}},
+      "other_charges": [],
+      "round_off": null,
+      "total": "49560.00",
+      "bank": {"account_number": "918020045514471", "ifsc": "ICIC0005678"},
+      "expect": {"vendor_in_master": true, "bank": "mismatch_ifsc_same_account", "po": "explicit", "duplicate": "none"},
+      "provenance": {"sources": ["PRD §13.1 T-03", "PRD §8.7 evidence (IFSC differs)", "README_FIXTURES T-03"], "proposed": ["invoice_date"]}
+    },
+    {
+      "test_id": "T-04",
+      "file": "T04_inferred_po_NIT-1123.pdf",
+      "layout": "compact",
+      "vendor": {"vendor_id": "V004", "legal_name": "Nandi IT Solutions Pvt Ltd", "gstin": "29AAECN7788P1Z1", "state_code": "29", "state_name": "Karnataka"},
+      "invoice_number": "NIT/1123",
+      "invoice_date": "2026-10-30",
+      "po_reference": null,
+      "lines": [
+        {"item_code": "LAP-14", "description": "Laptop 14in i5", "quantity": 4, "uom": "pcs", "unit_price": "62000.00", "amount": "248000.00"},
+        {"item_code": "DOCK-USB", "description": "USB-C docking station", "quantity": 4, "uom": "pcs", "unit_price": "8000.00", "amount": "32000.00"}
+      ],
+      "subtotal": "280000.00",
+      "discount": null,
+      "taxable_value": "280000.00",
+      "tax": {"cgst": {"rate": 9, "amount": "25200.00"}, "sgst": {"rate": 9, "amount": "25200.00"}, "igst": null},
+      "other_charges": [],
+      "round_off": null,
+      "total": "330400.00",
+      "bank": null,
+      "expect": {"vendor_in_master": true, "bank": "absent", "po": "none", "pair_against": "PO-1031", "duplicate": "none"},
+      "provenance": {"sources": ["PRD §13.1 T-04", "README_FIXTURES T-04 (30 Oct 2026)"], "proposed": ["tax", "total"]}
+    },
+    {
+      "test_id": "T-05",
+      "file": "T05_scanned_duplicate_INV-2041.pdf",
+      "layout": "banded",
+      "vendor": {"vendor_id": "V007", "legal_name": "Godavari Chemicals Ltd", "gstin": "37AADCG3456S1Z9", "state_code": "37", "state_name": "Andhra Pradesh"},
+      "invoice_number": "INV-2041",
+      "invoice_date": "2026-10-12",
+      "po_reference": "PO-1047",
+      "lines": [
+        {"item_code": "SOLV-IPA", "description": "IPA 200L drum", "quantity": 5, "uom": "drum", "unit_price": "18000.00", "amount": "90000.00"}
+      ],
+      "subtotal": "90000.00",
+      "discount": null,
+      "taxable_value": "90000.00",
+      "tax": {"cgst": null, "sgst": null, "igst": {"rate": 18, "amount": "16200.00"}},
+      "other_charges": [],
+      "round_off": null,
+      "total": "106200.00",
+      "bank": {"account_number": "917020038813317", "ifsc": "UTIB0003317"},
+      "scan": {"dpi": 200, "rotate_degrees": 1.4, "grayscale": true, "noise_sigma": 6.0, "seed": 2041, "jpeg_quality": 55},
+      "expect": {"vendor_in_master": true, "bank": "match", "po": "explicit", "duplicate": "confirmed", "text_layer": false},
+      "provenance": {"sources": ["PRD §13.1 T-05", "ledger.json L-SEED-04"], "proposed": ["bank"]}
+    },
+    {
+      "test_id": "T-06",
+      "file": "T06_recurring_rent_INV-1004.pdf",
+      "layout": "banded",
+      "vendor": {"vendor_id": "V002", "legal_name": "Prestige Workspace Rentals LLP", "gstin": "29AAKFP5678K1Z2", "state_code": "29", "state_name": "Karnataka"},
+      "invoice_number": "INV-1004",
+      "invoice_date": "2026-10-31",
+      "po_reference": "PO-1043",
+      "lines": [
+        {"item_code": "RENT-BLR", "description": "Office rent", "quantity": 1, "uom": "month", "unit_price": "45000.00", "amount": "45000.00"}
+      ],
+      "subtotal": "45000.00",
+      "discount": null,
+      "taxable_value": "45000.00",
+      "tax": {"cgst": {"rate": 9, "amount": "4050.00"}, "sgst": {"rate": 9, "amount": "4050.00"}, "igst": null},
+      "other_charges": [],
+      "round_off": null,
+      "total": "53100.00",
+      "bank": null,
+      "expect": {"vendor_in_master": true, "bank": "absent", "po": "explicit", "duplicate": "similar_note"},
+      "provenance": {"sources": ["PRD §13.2 T-06", "PRD §9.10.7"], "proposed": []}
+    },
+    {
+      "test_id": "T-07",
+      "file": "T07_revision_INV-2041-R.pdf",
+      "layout": "banded",
+      "vendor": {"vendor_id": "V007", "legal_name": "Godavari Chemicals Ltd", "gstin": "37AADCG3456S1Z9", "state_code": "37", "state_name": "Andhra Pradesh"},
+      "invoice_number": "INV-2041-R",
+      "invoice_date": "2026-10-30",
+      "po_reference": "PO-1047",
+      "lines": [
+        {"item_code": "SOLV-IPA", "description": "IPA 200L drum", "quantity": 5, "uom": "drum", "unit_price": "18000.00", "amount": "90000.00"}
+      ],
+      "subtotal": "90000.00",
+      "discount": null,
+      "taxable_value": "90000.00",
+      "tax": {"cgst": null, "sgst": null, "igst": {"rate": 18, "amount": "16200.00"}},
+      "other_charges": [],
+      "round_off": null,
+      "total": "106200.00",
+      "bank": {"account_number": "917020038813317", "ifsc": "UTIB0003317"},
+      "expect": {"vendor_in_master": true, "bank": "match", "po": "explicit", "duplicate": "revision"},
+      "provenance": {"sources": ["PRD §13.2 T-07"], "proposed": ["invoice_date", "tax", "total", "bank"]}
+    },
+    {
+      "test_id": "T-08",
+      "file": "T08_unit_price_variance_KE-2026-0311.pdf",
+      "layout": "bill",
+      "vendor": {"vendor_id": "V005", "legal_name": "Kaveri Electricals", "gstin": "29ABJPK2345Q1Z6", "state_code": "29", "state_name": "Karnataka"},
+      "invoice_number": "KE/2026/0311",
+      "invoice_date": "2026-10-30",
+      "po_reference": "PO-1045",
+      "lines": [
+        {"item_code": "CBL-25", "description": "Copper cable 2.5 sqmm coil", "quantity": 80, "uom": "coil", "unit_price": "1250.00", "amount": "100000.00"}
+      ],
+      "subtotal": "100000.00",
+      "discount": null,
+      "taxable_value": "100000.00",
+      "tax": {"cgst": {"rate": 9, "amount": "9000.00"}, "sgst": {"rate": 9, "amount": "9000.00"}, "igst": null},
+      "other_charges": [],
+      "round_off": null,
+      "total": "118000.00",
+      "bank": {"account_number": "1712005008123", "ifsc": "KKBK0008012"},
+      "expect": {"vendor_in_master": true, "bank": "match", "po": "explicit", "duplicate": "none",
+                 "price_variance": {"CBL-25": {"invoice": "1250.00", "po": "1000.00"}}},
+      "provenance": {"sources": ["PRD §13.2 T-08", "PRD §9.10.3"], "proposed": ["invoice_number", "invoice_date", "tax", "total", "bank"]}
+    },
+    {
+      "test_id": "T-09",
+      "file": "T09_unknown_vendor_HT-0425.pdf",
+      "layout": "compact",
+      "vendor": {"vendor_id": null, "legal_name": "Horizon Traders", "gstin": "29AAHFH4821L1Z3", "state_code": "29", "state_name": "Karnataka"},
+      "invoice_number": "HT/0425",
+      "invoice_date": "2026-10-30",
+      "po_reference": null,
+      "lines": [
+        {"item_code": null, "description": "TMT Bar 12mm", "quantity": 10, "uom": "pcs", "unit_price": "650.00", "amount": "6500.00"}
+      ],
+      "subtotal": "6500.00",
+      "discount": null,
+      "taxable_value": "6500.00",
+      "tax": {"cgst": {"rate": 9, "amount": "585.00"}, "sgst": {"rate": 9, "amount": "585.00"}, "igst": null},
+      "other_charges": [],
+      "round_off": null,
+      "total": "7670.00",
+      "bank": null,
+      "expect": {"vendor_in_master": false, "bank": "absent", "po": "none", "pair_against": null, "duplicate": "not_checked"},
+      "provenance": {"sources": ["PRD §13.2 T-09 (vendor name)"], "proposed": ["vendor.gstin", "invoice_number", "invoice_date", "po_reference", "lines", "tax", "total", "bank"]}
+    },
+    {
+      "test_id": "T-12",
+      "file": "T12_unmatched_line_INV-SL-0493.pdf",
+      "layout": "classic",
+      "vendor": {"vendor_id": "V001", "legal_name": "Sri Lakshmi Steel Traders", "gstin": "29AABCS1234F1Z5", "state_code": "29", "state_name": "Karnataka"},
+      "invoice_number": "INV-SL-0493",
+      "invoice_date": "2026-10-30",
+      "po_reference": "PO-1041",
+      "lines": [
+        {"item_code": "TMT-20", "description": "TMT Bar 20mm", "quantity": 10, "uom": "pcs", "unit_price": "1000.00", "amount": "10000.00"},
+        {"item_code": null, "description": "Cutting charges", "quantity": 1, "uom": null, "unit_price": "1500.00", "amount": "1500.00"}
+      ],
+      "subtotal": "11500.00",
+      "discount": null,
+      "taxable_value": "11500.00",
+      "tax": {"cgst": {"rate": 9, "amount": "1035.00"}, "sgst": {"rate": 9, "amount": "1035.00"}, "igst": null},
+      "other_charges": [],
+      "round_off": null,
+      "total": "13570.00",
+      "bank": {"account_number": "50200012341234", "ifsc": "HDFC0001234"},
+      "expect": {"vendor_in_master": true, "bank": "match", "po": "explicit", "duplicate": "none", "unpaired_lines": ["Cutting charges"]},
+      "provenance": {"sources": ["PRD §13.2 T-12"], "proposed": ["invoice_number", "invoice_date", "tax", "total", "bank"]}
+    },
+    {
+      "test_id": "T-15",
+      "file": "T15_arithmetic_mismatch_INV-SL-0497.pdf",
+      "layout": "classic",
+      "vendor": {"vendor_id": "V001", "legal_name": "Sri Lakshmi Steel Traders", "gstin": "29AABCS1234F1Z5", "state_code": "29", "state_name": "Karnataka"},
+      "invoice_number": "INV-SL-0497",
+      "invoice_date": "2026-10-30",
+      "po_reference": "PO-1042",
+      "lines": [
+        {"item_code": "TMT-12", "description": "TMT Bar 12mm", "quantity": 10, "uom": "pcs", "unit_price": "650.00", "amount": "6500.00"}
+      ],
+      "subtotal": "6500.00",
+      "discount": null,
+      "taxable_value": "6500.00",
+      "tax": {"cgst": {"rate": 9, "amount": "585.00"}, "sgst": {"rate": 9, "amount": "585.00"}, "igst": null},
+      "other_charges": [],
+      "round_off": null,
+      "total": "8670.00",
+      "bank": {"account_number": "50200012341234", "ifsc": "HDFC0001234"},
+      "expect": {"vendor_in_master": true, "bank": "match", "po": "explicit", "duplicate": "none", "arithmetic_variance": {"E4": "1000.00"}},
+      "provenance": {"sources": ["PRD §13.2 T-15"], "proposed": ["invoice_number", "invoice_date", "bank"]}
+    },
+    {
+      "test_id": "T-16",
+      "file": "T16_possible_duplicate_INV-GC-0927.pdf",
+      "layout": "banded",
+      "vendor": {"vendor_id": "V007", "legal_name": "Godavari Chemicals Ltd", "gstin": "37AADCG3456S1Z9", "state_code": "37", "state_name": "Andhra Pradesh"},
+      "invoice_number": "INV-GC-0927",
+      "invoice_date": "2026-10-06",
+      "po_reference": "PO-1048",
+      "lines": [
+        {"item_code": "SOLV-ACE", "description": "Acetone 200L drum", "quantity": 2, "uom": "drum", "unit_price": "25000.00", "amount": "50000.00"}
+      ],
+      "subtotal": "50000.00",
+      "discount": null,
+      "taxable_value": "50000.00",
+      "tax": {"cgst": null, "sgst": null, "igst": {"rate": 18, "amount": "9000.00"}},
+      "other_charges": [],
+      "round_off": null,
+      "total": "59000.00",
+      "bank": {"account_number": "917020038813317", "ifsc": "UTIB0003317"},
+      "expect": {"vendor_in_master": true, "bank": "match", "po": "explicit", "duplicate": "possible"},
+      "provenance": {"sources": ["PRD §13.2 T-16", "PRD §9.10.6"], "proposed": ["bank"]}
+    },
+    {
+      "test_id": "T-18",
+      "file": "T18_blocked_vendor_MLG-1187.pdf",
+      "layout": "compact",
+      "vendor": {"vendor_id": "V006", "legal_name": "Malnad Logistics", "gstin": "29AAGFM9012R1Z4", "state_code": "29", "state_name": "Karnataka"},
+      "invoice_number": "MLG/1187",
+      "invoice_date": "2026-10-30",
+      "po_reference": "PO-1046",
+      "lines": [
+        {"item_code": "FRT-LCL", "description": "Freight", "quantity": 1, "uom": "trip", "unit_price": "15000.00", "amount": "15000.00"}
+      ],
+      "subtotal": "15000.00",
+      "discount": null,
+      "taxable_value": "15000.00",
+      "tax": {"cgst": {"rate": 9, "amount": "1350.00"}, "sgst": {"rate": 9, "amount": "1350.00"}, "igst": null},
+      "other_charges": [],
+      "round_off": null,
+      "total": "17700.00",
+      "bank": {"account_number": "0645201004567", "ifsc": "CNRB0001456"},
+      "expect": {"vendor_in_master": true, "bank": "match", "po": "explicit", "duplicate": "none"},
+      "provenance": {"sources": ["PRD §13.2 T-18"], "proposed": ["invoice_number", "invoice_date", "lines.quantity", "tax", "total", "bank"]}
+    }
+  ]
+}

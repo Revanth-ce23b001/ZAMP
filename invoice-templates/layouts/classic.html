@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ inv.invoice_number }}</title>
+<style>
+  @page { size: A4; margin: 14mm 14mm 16mm 14mm; }
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; color: #111; margin: 0; }
+  .top { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #1f3a68; padding-bottom: 10px; }
+  .vendor h1 { font-size: 19pt; margin: 0 0 4px; color: #1f3a68; letter-spacing: .3px; }
+  .vendor div { font-size: 9.5pt; line-height: 1.45; }
+  .doc { border: 1.5px solid #1f3a68; min-width: 230px; }
+  .doc .title { background: #1f3a68; color: #fff; font-weight: bold; text-align: center; padding: 5px; font-size: 12pt; letter-spacing: 2px; }
+  .doc table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+  .doc td { padding: 3px 8px; }
+  .doc td.k { color: #555; white-space: nowrap; }
+  .doc td.v { font-weight: bold; text-align: right; }
+  .billto { margin: 12px 0; font-size: 9.5pt; }
+  .billto b { display: block; color: #1f3a68; font-size: 8.5pt; text-transform: uppercase; letter-spacing: 1px; }
+  table.items { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  table.items th { background: #e8edf5; border: 1px solid #9fb0cc; padding: 5px 6px; font-size: 9pt; text-align: left; }
+  table.items td { border: 1px solid #c9d3e3; padding: 5px 6px; vertical-align: top; }
+  table.items th.num, table.tax th.num { text-align: right; }
+  .num { text-align: right; white-space: nowrap; }
+  .lower { display: flex; justify-content: space-between; margin-top: 14px; gap: 20px; }
+  table.tax { border-collapse: collapse; font-size: 9.5pt; align-self: flex-start; }
+  table.tax caption { text-align: left; font-weight: bold; color: #1f3a68; padding-bottom: 3px; }
+  table.tax th, table.tax td { border: 1px solid #c9d3e3; padding: 4px 8px; }
+  table.tax th { background: #e8edf5; }
+  table.totals { border-collapse: collapse; min-width: 270px; }
+  table.totals td { padding: 4px 8px; }
+  table.totals tr.grand td { border-top: 2px solid #1f3a68; font-weight: bold; font-size: 12pt; }
+  .bank { margin-top: 22px; border: 1px dashed #9fb0cc; padding: 8px 10px; font-size: 9.5pt; width: 60%; }
+  .bank b { color: #1f3a68; }
+  .foot { margin-top: 30px; display: flex; justify-content: space-between; font-size: 8.5pt; color: #555; }
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="vendor">
+      <h1>{{ vendor.legal_name }}</h1>
+      <div>GSTIN: {{ vendor.gstin }}</div>
+      <div>State: {{ vendor.state_name }} ({{ vendor.state_code }})</div>
+    </div>
+    <div class="doc">
+      <div class="title">TAX INVOICE</div>
+      <table>
+        <tr><td class="k">Tax Invoice #</td><td class="v">{{ inv.invoice_number }}</td></tr>
+        <tr><td class="k">Invoice Date</td><td class="v">{{ inv.invoice_date | date("%d %b %Y") }}</td></tr>
+        {% if inv.po_reference %}<tr><td class="k">PO Number</td><td class="v">{{ inv.po_reference }}</td></tr>{% endif %}
+      </table>
+    </div>
+  </div>
+
+  <div class="billto"><b>Bill To</b>{{ buyer }}</div>
+
+  <table class="items">
+    <thead>
+      <tr><th style="width:5%">#</th><th style="width:14%">Item Code</th><th>Description</th>
+          <th class="num" style="width:9%">Qty</th><th style="width:8%">UOM</th>
+          <th class="num" style="width:13%">Rate (₹)</th><th class="num" style="width:15%">Amount (₹)</th></tr>
+    </thead>
+    <tbody>
+      {% for l in inv.lines %}
+      <tr><td>{{ loop.index }}</td><td>{{ l.item_code or "" }}</td><td>{{ l.description }}</td>
+          <td class="num">{{ l.quantity }}</td><td>{{ l.uom or "" }}</td>
+          <td class="num">{{ l.unit_price | inr }}</td><td class="num">{{ l.amount | inr }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="lower">
+    <table class="tax">
+      <caption>Tax Summary</caption>
+      <tr><th>Tax</th><th class="num">Rate</th><th class="num">Taxable (₹)</th><th class="num">Amount (₹)</th></tr>
+      {% for t in taxes %}
+      <tr><td>{{ t.label }}</td><td class="num">{{ t.rate }}%</td><td class="num">{{ inv.taxable_value | inr }}</td><td class="num">{{ t.amount | inr }}</td></tr>
+      {% endfor %}
+    </table>
+    <table class="totals">
+      <tr><td>Subtotal</td><td class="num">{{ inv.subtotal | inr }}</td></tr>
+      {% if inv.discount %}<tr><td>Less: Discount</td><td class="num">-{{ inv.discount | inr }}</td></tr>{% endif %}
+      <tr><td>Taxable Value</td><td class="num">{{ inv.taxable_value | inr }}</td></tr>
+      {% for t in taxes %}<tr><td>{{ t.label }} @ {{ t.rate }}%</td><td class="num">{{ t.amount | inr }}</td></tr>{% endfor %}
+      {% for c in inv.other_charges %}<tr><td>{{ c.label }}</td><td class="num">{{ c.amount | inr }}</td></tr>{% endfor %}
+      {% if inv.round_off %}<tr><td>Round Off</td><td class="num">{{ inv.round_off | inr }}</td></tr>{% endif %}
+      <tr class="grand"><td>Grand Total</td><td class="num">₹ {{ inv.total | inr }}</td></tr>
+    </table>
+  </div>
+
+  {% if bank %}
+  <div class="bank"><b>Bank Details for Payment</b><br>
+    A/c No.: {{ bank.account_number }}<br>IFSC: {{ bank.ifsc }}</div>
+  {% endif %}
+
+  <div class="foot"><span>Subject to Karnataka jurisdiction. E. &amp; O.E.</span><span>For {{ vendor.legal_name }} — Authorised Signatory</span></div>
+</body>
+</html>

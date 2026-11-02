@@ -11,6 +11,17 @@ import "server-only";
 
 export const dynamic = "force-dynamic";
 
+// Client address from the hosting platform's forwarded headers (Vercel sets x-real-ip and
+// x-forwarded-for; the Next.js server adds x-forwarded-for locally). App Router route handlers
+// do not expose the raw socket address, so when no header is present nothing is forwarded and
+// the backend falls back to this server's socket address.
+function clientAddress(request: Request): string | undefined {
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+  const first = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return first || undefined;
+}
+
 export async function POST(request: Request): Promise<Response> {
   const backend = process.env.BACKEND_URL?.replace(/\/+$/, "");
   if (!backend) {
@@ -25,6 +36,11 @@ export async function POST(request: Request): Promise<Response> {
   const token = process.env.DEMO_RESET_TOKEN;
   if (token) headers["X-Demo-Reset-Token"] = token;
   // If the token is unset, the request is forwarded without it and the backend returns 401.
+
+  // DEC-011: pass the browser's address so the backend's per-IP rejected-attempt limit applies
+  // per visitor, not to this server as a whole. The backend trusts it only alongside a valid token.
+  const clientIp = clientAddress(request);
+  if (clientIp) headers["X-Client-IP"] = clientIp;
 
   let upstream: Response;
   try {

@@ -19,6 +19,9 @@ backend/data/
 backend/storage/uploads/*
 !backend/storage/uploads/.gitkeep
 
+# Sample-invoice build intermediates (rendered HTML, clean T-05 before degradation)
+invoice-templates/build/
+
 # Node / Next.js (Day 1B)
 node_modules/
 .next/

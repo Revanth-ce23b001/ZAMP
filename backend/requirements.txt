@@ -6,6 +6,14 @@ pydantic==2.13.4
 PyYAML==6.0.3
 python-dotenv==1.2.2   # used by `uvicorn --env-file`
 
+# Sample invoice generation and verification (invoice-templates/).
+# After installing: python -m playwright install chromium
+playwright==1.64.1
+Jinja2==3.1.6
+pymupdf==2.0           # also used by tests/test_samples.py
+pillow==13.0.0
+numpy==2.5.0
+
 # Tests
 pytest==9.1.1
 httpx==0.28.1          # FastAPI TestClient

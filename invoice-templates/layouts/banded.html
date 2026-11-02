@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ inv.invoice_number }}</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  body { font-family: Cambria, "Times New Roman", serif; /* lining figures: old-style digits hurt OCR */ font-size: 11pt; color: #222; margin: 0; }
+  .band { background: #0f5c4d; color: #fff; text-align: center; padding: 26px 20px 18px; }
+  .band .name { font-size: 22pt; letter-spacing: 1px; }
+  .band .meta { font-size: 9.5pt; margin-top: 6px; opacity: .9; font-family: Verdana, sans-serif; }
+  .wrap { padding: 22px 26mm 18mm; }
+  .heading { text-align: center; font-size: 13pt; letter-spacing: 6px; color: #0f5c4d; margin-bottom: 18px; }
+  .grid { display: flex; justify-content: space-between; font-size: 10pt; margin-bottom: 18px; }
+  .grid .box { width: 48%; }
+  .grid .label { font-family: Verdana, sans-serif; font-size: 8pt; color: #777; text-transform: uppercase; letter-spacing: 1px; }
+  .grid .row { margin-bottom: 6px; }
+  table.items { width: 100%; border-collapse: collapse; }
+  table.items th { font-family: Verdana, sans-serif; font-size: 8.5pt; color: #0f5c4d; text-transform: uppercase; letter-spacing: .5px;
+                   border-bottom: 2px solid #0f5c4d; padding: 6px 4px; text-align: left; }
+  table.items td { padding: 8px 4px; border-bottom: 1px solid #ddd; }
+  table.items th.num { text-align: right; }
+  .num { text-align: right; white-space: nowrap; }
+  table.sum { margin-left: auto; margin-top: 10px; border-collapse: collapse; min-width: 300px; }
+  table.sum td { padding: 5px 4px; }
+  table.sum tr.total td { border-top: 2px solid #0f5c4d; border-bottom: 2px solid #0f5c4d; font-weight: bold; font-size: 12.5pt; color: #0f5c4d; }
+  .pay { margin-top: 26px; font-size: 10pt; background: #eef6f3; padding: 10px 14px; }
+  .thanks { margin-top: 30px; text-align: center; font-style: italic; color: #777; font-size: 10pt; }
+</style>
+</head>
+<body>
+  <div class="band">
+    <div class="name">{{ vendor.legal_name }}</div>
+    <div class="meta">GSTIN {{ vendor.gstin }} &nbsp;·&nbsp; {{ vendor.state_name }} (State Code {{ vendor.state_code }})</div>
+  </div>
+  <div class="wrap">
+    <div class="heading">INVOICE</div>
+    <div class="grid">
+      <div class="box">
+        <div class="row"><div class="label">Invoice No.</div>{{ inv.invoice_number }}</div>
+        <div class="row"><div class="label">Date</div>{{ inv.invoice_date | date("%d/%m/%Y") }}</div>
+        {% if inv.po_reference %}<div class="row"><div class="label">Your Order Ref.</div>{{ inv.po_reference }}</div>{% endif %}
+      </div>
+      <div class="box">
+        <div class="row"><div class="label">Billed To</div>{{ buyer }}</div>
+      </div>
+    </div>
+
+    <table class="items">
+      <thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Unit Price</th><th class="num">Line Total</th></tr></thead>
+      <tbody>
+        {% for l in inv.lines %}
+        <tr><td>{{ l.description }}</td><td class="num">{{ l.quantity }} {{ l.uom or "" }}</td>
+            <td class="num">Rs. {{ l.unit_price | inr }}</td><td class="num">Rs. {{ l.amount | inr }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <table class="sum">
+      <tr><td>Sub Total</td><td class="num">Rs. {{ inv.subtotal | inr }}</td></tr>
+      {% if inv.discount %}<tr><td>Discount</td><td class="num">-Rs. {{ inv.discount | inr }}</td></tr>{% endif %}
+      <tr><td>Taxable Amount</td><td class="num">Rs. {{ inv.taxable_value | inr }}</td></tr>
+      {% for t in taxes %}<tr><td>{{ t.label }} ({{ t.rate }}%)</td><td class="num">Rs. {{ t.amount | inr }}</td></tr>{% endfor %}
+      {% for c in inv.other_charges %}<tr><td>{{ c.label }}</td><td class="num">Rs. {{ c.amount | inr }}</td></tr>{% endfor %}
+      {% if inv.round_off %}<tr><td>Rounding</td><td class="num">Rs. {{ inv.round_off | inr }}</td></tr>{% endif %}
+      <tr class="total"><td>Amount Due</td><td class="num">Rs. {{ inv.total | inr }}</td></tr>
+    </table>
+
+    {% if bank %}
+    <div class="pay">Please remit to: Account {{ bank.account_number }} &nbsp;|&nbsp; IFSC {{ bank.ifsc }}</div>
+    {% endif %}
+    <div class="thanks">Thank you for your business.</div>
+  </div>
+</body>
+</html>

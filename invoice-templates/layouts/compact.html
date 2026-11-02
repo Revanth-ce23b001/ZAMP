@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ inv.invoice_number }}</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Tahoma, sans-serif; font-size: 10pt; color: #2b2b2b; margin: 0; }
+  .head { display: flex; gap: 12px; }
+  .card { flex: 1; background: #f4f1fb; border-radius: 6px; padding: 12px 14px; }
+  .card.accent { background: #5b3fa0; color: #fff; }
+  .card .t { font-size: 8pt; text-transform: uppercase; letter-spacing: 1.2px; opacity: .75; margin-bottom: 4px; }
+  .card .big { font-size: 15pt; font-weight: 600; }
+  .card .line { margin-top: 3px; font-size: 9.5pt; }
+  .kv { display: flex; gap: 12px; margin-top: 12px; }
+  .kv div { flex: 1; border-left: 3px solid #5b3fa0; padding: 2px 8px; font-size: 9.5pt; }
+  .kv b { display: block; font-size: 8pt; color: #5b3fa0; text-transform: uppercase; letter-spacing: 1px; }
+  table.items { width: 100%; border-collapse: separate; border-spacing: 0 3px; margin-top: 16px; }
+  table.items th { font-size: 8.5pt; text-align: left; color: #5b3fa0; padding: 4px 8px; }
+  table.items td { background: #faf9fd; padding: 7px 8px; }
+  table.items th.num { text-align: right; }
+  .num { text-align: right; white-space: nowrap; }
+  .sum { width: 52%; margin-left: auto; margin-top: 10px; font-size: 10pt; }
+  .sum .r { display: flex; justify-content: space-between; padding: 3px 8px; }
+  .sum .r.add { color: #555; }
+  .sum .r.total { background: #5b3fa0; color: #fff; font-weight: 600; font-size: 12pt; border-radius: 4px; margin-top: 4px; padding: 7px 8px; }
+  .pay { margin-top: 20px; font-size: 9.5pt; }
+  .note { margin-top: 26px; font-size: 8.5pt; color: #888; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <div class="card accent">
+      <div class="t">From</div>
+      <div class="big">{{ vendor.legal_name }}</div>
+      <div class="line">GSTIN: {{ vendor.gstin }}</div>
+      <div class="line">{{ vendor.state_name }} ({{ vendor.state_code }})</div>
+    </div>
+    <div class="card">
+      <div class="t">Invoice To</div>
+      <div class="line">{{ buyer }}</div>
+    </div>
+  </div>
+  <div class="kv">
+    <div><b>Invoice #</b>{{ inv.invoice_number }}</div>
+    <div><b>Issued</b>{{ inv.invoice_date | date("%d %B %Y") }}</div>
+    {% if inv.po_reference %}<div><b>Purchase Order</b>{{ inv.po_reference }}</div>{% endif %}
+  </div>
+
+  <table class="items">
+    <thead><tr><th style="width:6%">S.No</th><th>Description</th><th class="num" style="width:10%">Qty</th>
+               <th class="num" style="width:16%">Rate</th><th class="num" style="width:17%">Amount</th><th style="width:14%">Item Code</th></tr></thead>
+    <tbody>
+      {% for l in inv.lines %}
+      <tr><td>{{ loop.index }}</td><td>{{ l.description }}</td><td class="num">{{ l.quantity }}</td>
+          <td class="num">{{ l.unit_price | inr }}</td><td class="num">{{ l.amount | inr }}</td><td>{{ l.item_code or "" }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="sum">
+    <div class="r"><span>Subtotal</span><span>{{ inv.subtotal | inr }}</span></div>
+    {% if inv.discount %}<div class="r add"><span>Less: Discount</span><span>-{{ inv.discount | inr }}</span></div>{% endif %}
+    <div class="r"><span>Taxable value</span><span>{{ inv.taxable_value | inr }}</span></div>
+    {% for t in taxes %}<div class="r add"><span>Add: {{ t.label }} {{ t.rate }}%</span><span>{{ t.amount | inr }}</span></div>{% endfor %}
+    {% for c in inv.other_charges %}<div class="r add"><span>Add: {{ c.label }}</span><span>{{ c.amount | inr }}</span></div>{% endfor %}
+    {% if inv.round_off %}<div class="r add"><span>Round-off</span><span>{{ inv.round_off | inr }}</span></div>{% endif %}
+    <div class="r total"><span>Total (INR)</span><span>{{ inv.total | inr }}</span></div>
+  </div>
+
+  {% if bank %}<div class="pay">Pay by NEFT/RTGS to account no. {{ bank.account_number }}, IFSC {{ bank.ifsc }}.</div>{% endif %}
+  <div class="note">This is a computer-generated invoice.</div>
+</body>
+</html>
