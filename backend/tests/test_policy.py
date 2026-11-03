@@ -18,8 +18,16 @@ def test_policy_loads_with_every_assumption():
 
 def test_policy_version_is_sha256_of_file():
     policy = load_policy()
-    assert policy.version == hashlib.sha256(POLICY_PATH.read_bytes()).hexdigest()
+    assert policy.version == hashlib.sha256(POLICY_PATH.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
     assert len(policy.version) == 64
+
+
+def test_policy_version_ignores_line_endings(tmp_path):
+    lf, crlf = tmp_path / "lf.yaml", tmp_path / "crlf.yaml"
+    text = POLICY_PATH.read_bytes().replace(b"\r\n", b"\n")
+    lf.write_bytes(text)
+    crlf.write_bytes(text.replace(b"\n", b"\r\n"))
+    assert load_policy(lf).version == load_policy(crlf).version
 
 
 def test_policy_version_changes_with_content(tmp_path):

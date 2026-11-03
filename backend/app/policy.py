@@ -58,4 +58,10 @@ def load_policy(path: Path = POLICY_PATH) -> Policy:
         if entry.get("label") != PA_LABEL:
             raise PolicyError(f"other_assumptions.{name} label must be {PA_LABEL}")
 
-    return Policy(data=data, version=hashlib.sha256(raw).hexdigest(), path=path)
+    return Policy(data=data, version=policy_hash(raw), path=path)
+
+
+def policy_hash(raw: bytes) -> str:
+    """SHA-256 of policy.yaml with line endings normalised to LF, so the same policy has the same
+    version on Windows (CRLF checkout) and on the Linux deployment (LF)."""
+    return hashlib.sha256(raw.replace(b"\r\n", b"\n")).hexdigest()
