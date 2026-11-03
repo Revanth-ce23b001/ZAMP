@@ -1,0 +1,20 @@
+# Keeps the free Render backend awake so the demo has no cold start.
+# Set the repository variable BACKEND_URL (Settings > Secrets and variables > Actions > Variables)
+# to the Render URL, e.g. https://clearmatch-ap-backend.onrender.com. Without it, this does nothing.
+# GitHub may delay scheduled runs by several minutes; open the app a few minutes before a demo too.
+name: keep-warm
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping /api/health
+        if: ${{ vars.BACKEND_URL != '' }}
+        run: |
+          start=$(date +%s)
+          curl -fsS --max-time 120 "${{ vars.BACKEND_URL }}/api/health"
+          echo " (took $(( $(date +%s) - start ))s)"

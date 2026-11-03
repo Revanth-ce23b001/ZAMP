@@ -53,6 +53,7 @@ class Settings:
     llm_model: str | None = None
     anthropic_api_key: str | None = field(default=None, repr=False)
     gemini_api_key: str | None = field(default=None, repr=False)
+    frontend_origin_regex: str | None = None
     samples_dir: Path = BACKEND_DIR / "samples"
     # FR-014 cache. EXTRACTION_CACHE=off disables both reads and writes (determinism testing).
     extraction_cache_enabled: bool = True
@@ -114,6 +115,7 @@ def load_settings(require_reset_token: bool = True) -> Settings:
         database_path=Path(_env("DATABASE_PATH") or BACKEND_DIR / "data" / "clearmatch.db"),
         uploads_dir=Path(_env("UPLOADS_DIR") or BACKEND_DIR / "storage" / "uploads"),
         frontend_origin=_env("FRONTEND_ORIGIN") or "http://localhost:3000",
+        frontend_origin_regex=_env("FRONTEND_ORIGIN_REGEX"),
         demo_reset_token=token,
         llm_provider=_env("LLM_PROVIDER"),
         llm_model=_env("LLM_MODEL"),

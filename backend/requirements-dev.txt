@@ -1,0 +1,11 @@
+-r requirements.txt
+
+# Tests
+pytest==9.1.1
+
+# Sample invoice generation and verification (invoice-templates/), and browser e2e tests.
+# After installing: python -m playwright install chromium
+playwright==1.64.1
+Jinja2==3.1.6
+pillow==13.0.0
+numpy==2.5.0

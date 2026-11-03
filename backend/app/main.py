@@ -211,10 +211,12 @@ def create_app(settings: Settings | None = None,
             conn.close()
         worker.enqueue(run_id)
         return JSONResponse(status_code=202, content={"run_id": run_id, "status": "QUEUED"})
-    # NFR-05: CORS restricted to the frontend origin.
+    # NFR-05: CORS restricted to the frontend origin(s). FRONTEND_ORIGIN may list several, comma-
+    # separated; FRONTEND_ORIGIN_REGEX optionally admits the project's own Vercel preview URLs.
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[settings.frontend_origin],
+        allow_origins=[o.strip() for o in settings.frontend_origin.split(",") if o.strip()],
+        allow_origin_regex=settings.frontend_origin_regex,
         allow_methods=["GET", "POST"],
         # The browser calls the backend directly for uploads, run data and the SSE stream
         # (streams are not proxied through Next.js); Last-Event-ID is sent on reconnect.

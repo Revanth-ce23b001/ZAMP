@@ -1,0 +1,26 @@
+# Render blueprint for the ClearMatch AP backend (Dashboard > New > Blueprint > this repo).
+# Free plan: the service sleeps after ~15 minutes idle and the disk is ephemeral. Both are handled:
+# startup reseeds fixtures-v1 and loads the extraction-cache snapshot (DEC-014), and
+# .github/workflows/keep-warm.yml pings /api/health to avoid cold starts during a demo.
+services:
+  - type: web
+    name: clearmatch-ap-backend
+    runtime: docker
+    plan: free
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: DEMO_RESET_TOKEN          # same value as the Vercel project's DEMO_RESET_TOKEN
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FRONTEND_ORIGIN           # the Vercel production URL, e.g. https://clearmatch-ap.vercel.app
+        sync: false
+      - key: FRONTEND_ORIGIN_REGEX     # optional, admits Vercel preview URLs: ^https://clearmatch-ap[a-z0-9-]*\.vercel\.app$
+        sync: false
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: LLM_MODEL
+        value: gemini-3.6-flash
