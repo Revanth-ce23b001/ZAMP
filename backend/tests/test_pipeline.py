@@ -49,7 +49,7 @@ def fake():
 
 
 def make_client(settings, adapter):
-    return TestClient(create_app(settings, adapter_factory=lambda: adapter))
+    return TestClient(create_app(settings, adapter_for=lambda entry: adapter))
 
 
 @pytest.fixture
@@ -172,18 +172,22 @@ def test_unknown_sample_404(api, name):
 
 # ---------- worker stages 1-2 ----------
 
-def test_worker_runs_ingest_and_extract_then_stays_processing(api):
+def test_worker_runs_all_seven_stages_and_decides(api):
     r = upload(api, T01.read_bytes(), T01.name).json()
     wait(api)
     run = rows(api, "SELECT * FROM runs WHERE run_id = ?", r["run_id"])[0]
-    assert run["status"] == "PROCESSING"            # stages 3-7 arrive on Day 3
+    assert run["status"] == "DECIDED"
     stages = json.loads(run["stage_results"])
-    assert [(s["stage"], s["status"]) for s in stages] == [("INGEST", "PASSED"), ("EXTRACT", "PASSED")]
+    assert [s["stage"] for s in stages] == ["INGEST", "EXTRACT", "VALIDATE", "VENDOR_BANK", "DUPLICATE",
+                                            "PO_MATCH", "DECIDE"]
     assert stages[0]["summary"] == "Digital PDF, text layer read (1 page)"
     assert run["ingest_method"] == "text"
+    # The fake extraction lacks most fields, so the rules hold it; it is still a business decision.
+    assert rows(api, "SELECT status FROM decisions WHERE run_id = ?", r["run_id"]) == [{"status": "HOLD"}]
     types = [e["type"] for e in rows(api, "SELECT type FROM audit_events WHERE run_id = ? ORDER BY event_id", r["run_id"])]
-    assert types == ["run_created", "stage_started", "stage_completed", "stage_started",
-                     "extraction_called", "stage_completed"]
+    assert types[:6] == ["run_created", "stage_started", "stage_completed", "stage_started",
+                         "extraction_called", "stage_completed"]
+    assert types.count("stage_completed") == 7 and types[-1] == "decision"
     ext = rows(api, "SELECT * FROM extractions WHERE run_id = ?", r["run_id"])[0]
     assert ext["cached"] == 0 and ext["provider"] == "fake"
     InvoiceExtraction.model_validate_json(ext["payload"])
@@ -327,7 +331,8 @@ def test_provider_failure_is_error_and_retry_reuses_run(settings):
         assert rr.status_code == 202 and rr.json()["run_id"] == r["run_id"]
         assert c.app.state.worker.wait_idle(30)
         run = rows(c, "SELECT * FROM runs WHERE run_id = ?", r["run_id"])[0]
-        assert run["status"] == "PROCESSING" and run["error_message"] is None
+        assert run["status"] == "DECIDED" and run["error_message"] is None
+        assert len(rows(c, "SELECT * FROM decisions WHERE run_id = ?", r["run_id"])) == 1
         assert rows(c, "SELECT COUNT(*) AS n FROM runs")[0]["n"] == 1
         assert len(rows(c, "SELECT * FROM extractions WHERE run_id = ?", r["run_id"])) == 1
         types = [e["type"] for e in rows(c, "SELECT type FROM audit_events WHERE run_id = ? ORDER BY event_id", r["run_id"])]
@@ -342,21 +347,23 @@ def test_retry_only_for_error_runs(api):
     assert api.post("/api/runs/no-such-run/retry").status_code == 404
 
 
-def test_unconfigured_provider_is_error_not_crash(settings):
-    s = dataclasses.replace(settings, llm_provider=None, llm_model=None)
-    with TestClient(create_app(s)) as c:
-        c.settings = s
-        r = upload(c, T01.read_bytes()).json()
-        assert c.app.state.worker.wait_idle(30)
-        run = rows(c, "SELECT status, error_message FROM runs WHERE run_id = ?", r["run_id"])[0]
-        assert run == {"status": "ERROR", "error_message": "LLM provider is not configured (set LLM_PROVIDER and LLM_MODEL)"}
+@pytest.mark.parametrize("change, message", [
+    (dict(text_chain=()), "the text extraction chain is empty"),
+    (dict(vision_chain=()), "the vision extraction chain is empty"),
+    (dict(gemini_api_key=None), "API key is not set"),
+])
+def test_bad_chain_config_refuses_startup(settings, change, message):
+    from app.config import ConfigError
+
+    with pytest.raises(ConfigError, match=message):
+        create_app(dataclasses.replace(settings, **change))
 
 
 # ---------- secrets ----------
 
 def test_api_key_never_in_responses_logs_or_audit(settings, caplog):
     caplog.set_level(logging.DEBUG)
-    s = dataclasses.replace(settings, gemini_api_key=FAKE_KEY, llm_provider="gemini", llm_model="m")
+    s = dataclasses.replace(settings, gemini_api_key=FAKE_KEY)
     leaky = FakeAdapter(fail_times=99, message=f"401 bad key {FAKE_KEY} rejected")
     with make_client(s, leaky) as c:
         c.settings = s

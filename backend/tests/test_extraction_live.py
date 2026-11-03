@@ -73,8 +73,14 @@ def _num(v):
     return None if v is None else rupees_to_paise(v)
 
 
+# Layouts that print no item-code column: the printed value there is genuinely null.
+LAYOUTS_WITHOUT_ITEM_CODES = {"banded"}
+
+
 def compare(inv: dict, ex) -> tuple[list[str], list[str]]:
-    """Returns (wrong fields, low-confidence fields < 0.85)."""
+    """Returns (wrong fields, low-confidence fields). Low confidence (< 0.85) is reported only for
+    fields that are actually printed; absent fields legitimately come back null with low
+    confidence and are not counted."""
     wrong, low = [], []
 
     def check(name, got_field, expected, numeric=False):
@@ -82,7 +88,7 @@ def compare(inv: dict, ex) -> tuple[list[str], list[str]]:
         same = (_num(got) == _num(expected)) if numeric else (got == expected)
         if not same:
             wrong.append(f"{name}: got {got!r}, printed {expected!r}")
-        if got_field.confidence < 0.85:
+        if expected is not None and got_field.confidence < 0.85:
             low.append(f"{name} ({got_field.confidence:.2f})")
 
     check("invoice_number", ex.invoice_number, inv["invoice_number"])
@@ -105,7 +111,8 @@ def compare(inv: dict, ex) -> tuple[list[str], list[str]]:
         wrong.append(f"line_items: got {len(ex.line_items)}, printed {len(inv['lines'])}")
     for i, (got, want) in enumerate(zip(ex.line_items, inv["lines"]), start=1):
         check(f"line{i}.description", got.description, want["description"])
-        check(f"line{i}.item_code", got.item_code, want["item_code"])
+        printed_code = None if inv["layout"] in LAYOUTS_WITHOUT_ITEM_CODES else want["item_code"]
+        check(f"line{i}.item_code", got.item_code, printed_code)
         for k in ("quantity", "unit_price", "amount"):
             check(f"line{i}.{k}", getattr(got, k), want[k], numeric=True)
     printed_charges = [(c["label"], _num(c["amount"])) for c in inv["other_charges"]]

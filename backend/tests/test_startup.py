@@ -45,6 +45,9 @@ def _server_env(tmp_path, token):
     env = {k: v for k, v in os.environ.items() if k != "DEMO_RESET_TOKEN"}
     env["DATABASE_PATH"] = str(tmp_path / "srv.db")
     env["UPLOADS_DIR"] = str(tmp_path / "uploads")
+    env["CACHE_SNAPSHOT"] = "off"
+    # A non-empty extraction chain with credentials is required at startup (DEC-015).
+    env.update(LLM_PROVIDER="gemini", LLM_MODEL="test-model", GEMINI_API_KEY="test-key")
     if token is not None:
         env["DEMO_RESET_TOKEN"] = token
     return env

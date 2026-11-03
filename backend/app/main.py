@@ -12,7 +12,8 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.config import ConfigError, Settings, load_settings
+from app.config import ChainEntry, ConfigError, Settings, load_settings
+from app.db.cache_snapshot import load_snapshot_if_empty
 from app.db.connection import connect
 from app.db.migrate import migrate
 from app.db.seed import FIXTURE_VERSION, is_seeded, seed, table_counts
@@ -37,6 +38,7 @@ def _init_database(settings: Settings) -> None:
         migrate(conn)
         if not is_seeded(conn):
             seed(conn)
+        load_snapshot_if_empty(conn, settings.cache_snapshot)   # DEC-013
     finally:
         conn.close()
 
@@ -60,15 +62,17 @@ def allowed_overrun(po_total: int, policy: Policy) -> int:
 
 
 def create_app(settings: Settings | None = None,
-               adapter_factory: Callable[[], ExtractionAdapter] | None = None) -> FastAPI:
-    # Raises ConfigError (and so refuses to start) when DEMO_RESET_TOKEN is missing.
+               adapter_for: Callable[[ChainEntry], ExtractionAdapter] | None = None) -> FastAPI:
+    # Raises ConfigError (and so refuses to start) when DEMO_RESET_TOKEN is missing or an
+    # extraction chain is empty or lacks credentials (DEC-015).
     settings = settings or load_settings(require_reset_token=True)
     if not settings.demo_reset_token:
         raise ConfigError("DEMO_RESET_TOKEN is required")
+    settings.validate_chains()
     policy = load_policy()
     _init_database(settings)
     settings.uploads_dir.mkdir(parents=True, exist_ok=True)
-    worker = Worker(settings, policy, adapter_factory)
+    worker = Worker(settings, policy, adapter_for)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):

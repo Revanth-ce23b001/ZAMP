@@ -9,7 +9,9 @@ import time
 
 from pydantic import ValidationError
 
-from app.services.extraction.base import ExtractionError, ExtractionResult, Pages, Usage
+from app.services.extraction.base import (
+    AVAILABILITY, OTHER, SCHEMA, ExtractionError, ExtractionResult, Pages, Usage,
+)
 from app.services.extraction.prompt import IMAGE_INPUT, SYSTEM_PROMPT, text_input
 from app.services.extraction.schema import InvoiceExtraction
 
@@ -57,7 +59,7 @@ class GeminiAdapter:
     def extract(self, pages: Pages, schema: type[InvoiceExtraction] = InvoiceExtraction) -> ExtractionResult:
         config, contents = self._config(schema), self._contents(pages)
         usage = Usage()
-        last_error = "unknown error"
+        last_error, last_kind = "unknown error", OTHER
         for attempt in range(1, MAX_ATTEMPTS + 1):
             try:
                 resp = self._client.models.generate_content(model=self.model, contents=contents, config=config)
@@ -71,10 +73,23 @@ class GeminiAdapter:
                 extraction = schema.model_validate_json(resp.text or "")
                 return ExtractionResult(extraction, self.provider, self.model, usage, attempt)
             except (ValidationError, json.JSONDecodeError, ValueError) as exc:
-                last_error = f"malformed extraction output: {type(exc).__name__}"
+                last_error, last_kind = f"malformed extraction output: {type(exc).__name__}", SCHEMA
             except Exception as exc:  # noqa: BLE001 - API errors, timeouts, network
                 last_error = f"provider call failed: {type(exc).__name__}: {str(exc)[:300]}"
+                last_kind = classify(exc)
                 usage = Usage(usage.input_tokens, usage.output_tokens, usage.thinking_tokens, usage.calls + 1)
             if attempt < MAX_ATTEMPTS:
                 time.sleep(self._retry_pause)
-        raise ExtractionError(f"{last_error} (after {MAX_ATTEMPTS} attempts)", usage)
+        raise ExtractionError(f"{last_error} (after {MAX_ATTEMPTS} attempts)", usage, kind=last_kind)
+
+
+def classify(exc: Exception) -> str:
+    """AVAILABILITY for rate limits, server errors, timeouts and connection failures."""
+    code = getattr(exc, "code", None)
+    if isinstance(code, int):
+        return AVAILABILITY if code == 429 or code >= 500 else OTHER
+    name = type(exc).__name__.lower()
+    if isinstance(exc, (TimeoutError, ConnectionError)) or any(
+            k in name for k in ("timeout", "connect", "network", "remoteprotocol")):
+        return AVAILABILITY
+    return OTHER

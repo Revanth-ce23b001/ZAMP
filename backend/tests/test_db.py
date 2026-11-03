@@ -22,11 +22,12 @@ def tables(conn):
 
 def test_migration_runs_on_empty_db(empty_db):
     assert tables(empty_db) == set()
-    assert migrate(empty_db) == ["0001_initial"]
+    versions = ["0001_initial", "0002_decision_commit_plan"]
+    assert migrate(empty_db) == versions
     assert EXPECTED_TABLES <= tables(empty_db)
-    assert applied_versions(empty_db) == ["0001_initial"]
+    assert applied_versions(empty_db) == versions
     assert migrate(empty_db) == []        # recorded; not re-applied
-    assert applied_versions(empty_db) == ["0001_initial"]
+    assert applied_versions(empty_db) == versions
 
 
 def test_foreign_keys_on(seeded_db):

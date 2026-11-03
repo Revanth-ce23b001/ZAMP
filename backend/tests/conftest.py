@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.config import Settings
+from app.config import ChainEntry, Settings
 from app.db.connection import connect
 from app.db.migrate import migrate
 from app.db.seed import SEED_DIR, seed
@@ -32,13 +32,22 @@ def fixture_records(name: str) -> list[dict]:
     return json.loads((SEED_DIR / name).read_text(encoding="utf-8"))["records"]
 
 
+TEST_CHAIN = (ChainEntry("gemini", "test-model"),)
+
+
 @pytest.fixture
 def settings(tmp_path) -> Settings:
+    # A configured chain is required at startup (DEC-015); tests inject fake adapters.
+    # cache_snapshot=None keeps the shipped cache out of tests that count provider calls.
     return Settings(
         database_path=tmp_path / "test.db",
         uploads_dir=tmp_path / "uploads",
         frontend_origin="http://localhost:3000",
         demo_reset_token=TEST_TOKEN,
+        gemini_api_key="test-gemini-key",
+        text_chain=TEST_CHAIN,
+        vision_chain=TEST_CHAIN,
+        cache_snapshot=None,
     )
 
 

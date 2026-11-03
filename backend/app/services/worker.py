@@ -1,9 +1,9 @@
 """Sequential processing worker (FR-005, FR-093, NFR-11).
 
 One in-process thread consumes a FIFO queue of run_ids, one run at a time; there is no
-parallel path. Day 2B runs stages 1 (Ingest) and 2 (Extract) and leaves the run at PROCESSING
-for stages 3-7 (Day 3). Technical failures set run status ERROR with a message; they are never
-converted into HOLD or REJECT (FR-018, NFR-09).
+parallel path. Stages 1 (Ingest) and 2 (Extract) run here; stages 3-7 run in the pure rules
+engine via decide_run, which also commits an APPROVE. Technical failures set run status ERROR
+with a message; they are never converted into HOLD or REJECT (FR-018, NFR-09).
 """
 import json
 import logging
@@ -13,13 +13,15 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-from app.config import Settings
+from app.config import ChainEntry, Settings
 from app.db.connection import connect
 from app.policy import Policy
 from app.services import audit
-from app.services.extraction import adapter_from_settings
+from app.services.extraction import adapter_factory
 from app.services.extraction import cache as extraction_cache
 from app.services.extraction.base import ExtractionAdapter, ExtractionError
+from app.services.extraction.chain import Attempt, run_chain
+from app.services.decision import decide_run
 from app.services.ingest import IngestError, ingest
 from app.utils.timeutil import now_iso
 
@@ -28,11 +30,12 @@ log = logging.getLogger("clearmatch.worker")
 
 class Worker:
     def __init__(self, settings: Settings, policy: Policy,
-                 adapter_factory: Callable[[], ExtractionAdapter] | None = None):
+                 adapter_for: Callable[[ChainEntry], ExtractionAdapter] | None = None):
         self._settings = settings
+        self._policy = policy
         self._min_chars = policy.assumption("A-24")
         self._dpi = policy.data["other_assumptions"]["render_dpi"]["value"]
-        self._adapter_factory = adapter_factory or (lambda: adapter_from_settings(settings))
+        self._adapter_for = adapter_for or adapter_factory(settings)
         self._queue: queue.Queue[str | None] = queue.Queue()
         self._pending = 0
         self._cond = threading.Condition()
@@ -161,12 +164,22 @@ class Worker:
                                                               "extracted_at": hit.extracted_at})
                 summary = f"{hit.extraction.field_count()} fields extracted (cached)"
             else:
+                chain = (self._settings.vision_chain if result.pages.method == "vision"
+                         else self._settings.text_chain)
+
+                def record(att: Attempt, fell_to: ChainEntry | None) -> None:
+                    payload = {"ok": att.ok, "provider": att.entry.provider, "model": att.entry.model,
+                               **self._usage(att.usage)}
+                    if not att.ok:
+                        payload |= {"error_kind": att.error_kind, "error": self._redact(att.error or "")[:300]}
+                    if fell_to is not None:     # DEC-015: every fallback is audited
+                        payload |= {"fallback": True, "fallback_to": str(fell_to)}
+                    if not att.ok:
+                        audit.add(conn, run_id, "extraction_called", payload)
+
                 try:
-                    adapter = self._adapter_factory()
-                    res = adapter.extract(result.pages)
+                    res = run_chain(chain, self._adapter_for, result.pages, record)
                 except ExtractionError as exc:
-                    audit.add(conn, run_id, "extraction_called",
-                              {"ok": False, **self._usage(exc.usage)})
                     stages.append(self._stage("EXTRACT", "ERROR", "Extraction failed", started))
                     self._fail(run_id, "EXTRACT", str(exc), stages)
                     return
@@ -185,7 +198,10 @@ class Worker:
             self._save_stages(conn, run_id, stages)
             audit.add(conn, run_id, "stage_completed", {"stage": "EXTRACT", "status": "PASSED", "summary": summary})
             conn.execute("COMMIT")
-            # Stages 3-7 arrive on Day 3; the run stays PROCESSING until then.
+
+            # ---------------- Stages 3-7 (pure rules) + commit for APPROVE
+            extraction = hit.extraction if hit else res.extraction
+            decide_run(conn, run_id, extraction, self._policy, stages)
         finally:
             if conn.in_transaction:
                 conn.execute("ROLLBACK")

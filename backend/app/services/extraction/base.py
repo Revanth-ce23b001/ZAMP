@@ -30,13 +30,21 @@ class ExtractionResult:
     attempts: int
 
 
+# Failure kinds. Only AVAILABILITY failures fall through to the next provider in the chain.
+AVAILABILITY = "availability"   # 429, 5xx, timeout, connection error
+SCHEMA = "schema"               # malformed or schema-invalid output (a prompt problem)
+CONFIG = "config"               # missing key, unknown provider, empty chain
+OTHER = "other"                 # anything else (e.g. 400/401/403/404): never hidden by fallback
+
+
 class ExtractionError(RuntimeError):
     """Technical failure (API error, timeout, malformed output twice). Leads to run ERROR, never
     to a business decision (FR-018)."""
 
-    def __init__(self, message: str, usage: Usage | None = None):
+    def __init__(self, message: str, usage: Usage | None = None, kind: str = OTHER):
         super().__init__(message)
         self.usage = usage or Usage()
+        self.kind = kind
 
 
 class ExtractionAdapter(Protocol):

@@ -1,20 +1,29 @@
-"""Extraction service: adapter selection by configuration (FR-015)."""
-from app.config import Settings
-from app.services.extraction.base import ExtractionAdapter, ExtractionError
+"""Extraction service: adapters built per chain entry from configuration (FR-015, DEC-015)."""
+from collections.abc import Callable
+
+from app.config import ChainEntry, Settings
+from app.services.extraction.base import CONFIG, ExtractionAdapter, ExtractionError
 
 
-def adapter_from_settings(settings: Settings) -> ExtractionAdapter:
-    """Build the configured adapter. Misconfiguration raises ExtractionError so the run goes to
-    ERROR (a technical failure), never to a business decision."""
-    provider = (settings.llm_provider or "").lower()
-    if not provider or not settings.llm_model:
-        raise ExtractionError("LLM provider is not configured (set LLM_PROVIDER and LLM_MODEL)")
-    if provider == "gemini":
-        if not settings.gemini_api_key:
-            raise ExtractionError("GEMINI_API_KEY is not set")
-        from app.services.extraction.gemini import GeminiAdapter
+def adapter_factory(settings: Settings) -> Callable[[ChainEntry], ExtractionAdapter]:
+    """Return adapter_for(entry). Adapters are cached per entry for the process lifetime."""
+    cache: dict[ChainEntry, ExtractionAdapter] = {}
 
-        return GeminiAdapter(settings.gemini_api_key, settings.llm_model)
-    if provider == "anthropic":
-        raise ExtractionError("the anthropic adapter is P1 and not built yet")
-    raise ExtractionError(f"unknown LLM_PROVIDER {provider!r}")
+    def adapter_for(entry: ChainEntry) -> ExtractionAdapter:
+        if entry in cache:
+            return cache[entry]
+        key = settings.api_key_for(entry.provider)
+        if not key:
+            raise ExtractionError(f"no API key configured for {entry}", kind=CONFIG)
+        if entry.provider == "gemini":
+            from app.services.extraction.gemini import GeminiAdapter
+
+            adapter = GeminiAdapter(key, entry.model)
+        elif entry.provider == "anthropic":
+            raise ExtractionError("the anthropic adapter is P1 and not built yet", kind=CONFIG)
+        else:
+            raise ExtractionError(f"unknown provider {entry.provider!r}", kind=CONFIG)
+        cache[entry] = adapter
+        return adapter
+
+    return adapter_for

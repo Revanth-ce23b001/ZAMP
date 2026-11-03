@@ -364,6 +364,13 @@ assumptions:
     meaning: 29 Oct 2026, outside the 7-day window after INV-SL-0467 (14 Oct 2026)
     source: Fixtures; this PRD
 
+# P1 rules (PRD §15, OD-7). Implemented but switched off until P0 is stable.
+p1_rules:
+  # FR-022: document_type != tax_invoice or currency != INR -> UNSUPPORTED_DOCUMENT (HOLD).
+  unsupported_document: false
+  # FR-027: CGST+SGST vs IGST must match vendor state vs buyer state -> TAX_REGIME_MISMATCH (HOLD).
+  tax_regime: false
+
 # Other [PA] values stated in the PRD body but not numbered in §14.1.
 # Kept here because the PRD says all [PA] values live in policy.yaml.
 other_assumptions:

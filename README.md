@@ -9,10 +9,12 @@ deterministic rules decide APPROVE, HOLD or REJECT; humans resolve exceptions.
 - Seed data: [`backend/seed/README_FIXTURES.md`](backend/seed/README_FIXTURES.md) (`fixtures-v1`, synthetic)
 - Wireframe (layout and navigation only; its sample data is placeholder): [`docs/wireframes/`](docs/wireframes/)
 
-**Status: Day 2B.** Backend scaffold, policy, reason codes, schema, seed loader, read endpoints,
-demo reset, verified sample invoices, PDF upload, the sequential worker and stages 1-2 (Ingest,
-Extract with Gemini, cached by file hash). Runs stop at PROCESSING after Extract; stages 3-7
-(rules and decision) arrive on Day 3. Next.js shell with navigation, Policy and Demo Reset pages.
+**Status: Day 3A.** The full backend pipeline runs end to end: upload, sequential worker,
+Ingest, Extract (Gemini with an ordered fallback chain, cached by file hash, cache snapshot
+shipped for the samples), the pure rules engine for stages 3-7 (Validate, Vendor & Bank,
+Duplicate, PO Match, Decide) and `commit_approval`. All 15 samples produce exactly the PRD §13
+status and reason codes. No SSE, live view or business screens yet (Day 3B onward); the Next.js
+shell has navigation, Policy and Demo Reset pages.
 
 All data is synthetic. Money is stored as integer paise.
 
@@ -65,6 +67,10 @@ Backend (from `backend/`):
 | Run the API | `python -m uvicorn app.main:app --env-file .env --reload` (port 8000) |
 | Run with the cache disabled | add `EXTRACTION_CACHE=off` to `backend/.env`, or set it in the shell first (PowerShell: `$env:EXTRACTION_CACHE="off"`) |
 | All offline tests | `python -m pytest -q` (live provider tests are skipped) |
+| PRD §13 scenarios only (served from the cache) | `python -m pytest tests/test_scenarios.py -q` |
+| Rules unit tests only | `python -m pytest tests/test_rules.py tests/test_commit.py -q` |
+| Warm the cache + export the snapshot (live calls) | `python -m app.tools.warm_cache` (`--only T06,T09 --force` to redo files) |
+| Check cached extractions against the printed values | `python -m app.tools.extraction_report` |
 | Live extraction tests (cost money, ~10 min) | `python -m pytest tests/test_extraction_live.py --run-live -s` |
 | Determinism only (3 live passes) | `python -m pytest tests/test_extraction_live.py --run-live -s -m determinism` |
 | Fixture tests only | `python -m pytest seed/test_fixtures.py -q` |
