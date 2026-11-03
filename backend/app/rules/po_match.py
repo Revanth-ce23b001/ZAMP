@@ -129,6 +129,42 @@ class POResult:
     candidates: list[Candidate] = field(default_factory=list)
     commit_lines: list[tuple[str, float, int]] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    detail: dict | None = None                 # PO header and line diff for the PO match tab
+
+
+def po_detail(po: PO, method: str, pairs: list[Pair], unpaired: list[tuple[int, LineItem]], taxable: int | None,
+              consumption: Consumption, rules: Rules, codes_raised: bool) -> dict:
+    """Structured PO header and line diff (PRD §10.5 PO match tab). Remaining is PO total minus
+    previously approved; the allowed overrun is a separate value, never folded into remaining."""
+    approved = consumption.value_by_po.get(po.po_number, 0)
+    allow = rules.allowed_overrun(po.po_total)
+    lines = []
+    for p in pairs:
+        prev = consumption.qty_by_line.get(p.po_line.po_line_id, 0)
+        this = float(p.line.quantity.value)
+        excess = max(prev + this - (p.po_line.quantity + rules.qty_overrun), 0)
+        inv_price, po_price = paise(p.line.unit_price.value), p.po_line.unit_price
+        price_ok = rules.price_ok(inv_price, po_price)
+        ok = price_ok and excess == 0
+        lines.append({
+            "invoice_line": p.index, "description": p.line.description.value, "item_code": p.line.item_code.value,
+            "po_line_id": p.po_line.po_line_id, "po_item_code": p.po_line.item_code,
+            "po_description": p.po_line.description, "pairing": p.method,
+            "quantity": {"po": p.po_line.quantity, "previously_approved": prev, "this_invoice": this, "excess": excess},
+            "unit_price": {"po": po_price, "invoice": inv_price,
+                           "variance_pct": round((inv_price - po_price) * 100 / po_price, 2) if po_price else 0.0,
+                           "allowed_pct": rules.unit_price_pct},
+            "result": "PASSED" if ok else ("FAILED" if codes_raised else "INFO"),
+        })
+    for n, li in unpaired:
+        lines.append({"invoice_line": n, "description": li.description.value, "item_code": li.item_code.value,
+                      "po_line_id": None, "pairing": None, "quantity": None, "unit_price": None,
+                      "result": "FAILED" if codes_raised else "INFO"})
+    lines.sort(key=lambda l: l["invoice_line"])
+    return {"po_number": po.po_number, "method": method, "po_total": po.po_total, "previously_approved": approved,
+            "this_invoice": taxable, "remaining": po.po_total - approved, "allowed_overrun": allow,
+            "ceiling": po.po_total + allow, "invoices_previously_approved": consumption.invoices_by_po.get(po.po_number, 0),
+            "lines": lines}
 
 
 def po_match(x: InvoiceExtraction, vendor_id: str | None, pos: tuple[PO, ...], consumption: Consumption,
@@ -262,6 +298,7 @@ def po_match(x: InvoiceExtraction, vendor_id: str | None, pos: tuple[PO, ...], c
 
     if raise_codes and not unpaired:
         res.commit_lines = allocate(pairs, taxable) if taxable is not None else []
+    res.detail = po_detail(po, method, pairs, unpaired, taxable, consumption, rules, raise_codes)
 
     codes = {h.code for h in out.hits}
     failed = codes & {"LINE_ITEM_UNMATCHED", "UNIT_PRICE_VARIANCE", "QUANTITY_EXCEEDS_PO", "PO_BALANCE_EXCEEDED"}

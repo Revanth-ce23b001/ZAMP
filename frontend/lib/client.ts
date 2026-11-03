@@ -80,6 +80,61 @@ export type Evidence = {
   reason_code: string | null;
 };
 
+export type Money = { paise: number; display: string };
+export type Field<T = unknown> = { value: T | null; confidence: number };
+
+export type PoLine = {
+  invoice_line: number;
+  description: string | null;
+  item_code: string | null;
+  po_line_id: string | null;
+  po_item_code?: string;
+  po_description?: string;
+  pairing: "code" | "description" | "alias" | null;
+  quantity: { po: number; previously_approved: number; this_invoice: number; excess: number } | null;
+  unit_price: { po: Money; invoice: Money; variance_pct: number; allowed_pct: number } | null;
+  result: string;
+};
+
+export type PoDetail = {
+  po_number: string;
+  method: "explicit" | "inferred" | "confirmed";
+  po_total: Money;
+  previously_approved: Money;
+  this_invoice: Money | null;
+  remaining: Money;
+  allowed_overrun: Money;
+  ceiling: Money;
+  invoices_previously_approved: number;
+  lines: PoLine[];
+};
+
+export type DuplicateMatch = {
+  tier: string;
+  ledger_id: string;
+  source: string;
+  run_id: string | null;
+  run_display: string | null;
+  invoice_number_raw: string;
+  invoice_number_normalised: string;
+  invoice_date: string;
+  total: Money;
+  status: string;
+  po_number: string | null;
+  lines: { key: string; qty: number }[];
+};
+
+export type VendorSide = {
+  legal_name: string | null;
+  gstin: string | null;
+  state_code: string | null;
+  state_name?: string;
+  status?: string;
+  vendor_id?: string;
+  bank_account_masked: string | null;
+  ifsc: string | null;
+};
+
 export type RunDetail = {
   run_id: string;
   run_number: number;
@@ -87,8 +142,24 @@ export type RunDetail = {
   file_name: string;
   status: string;
   error_message: string | null;
+  completed_at: string | null;
   stage_results: { stage: string; status: string; summary: string; evidence_ids: number[] }[];
-  extraction: { provider: string; model: string; cached: boolean } | null;
+  extraction: {
+    provider: string; model: string; cached: boolean; ingest_method: string;
+    fields: Record<string, any>;
+  } | null;
+  invoice: {
+    invoice_number: string | null; invoice_number_normalised: string | null; invoice_date: string | null;
+    vendor_name: string | null; vendor_gstin: string | null; total: Money | null; taxable_value: Money | null;
+    line_signature: { key: string; qty: number }[] | null;
+  } | null;
+  vendor: {
+    identified: boolean;
+    identification_note: string | null;
+    invoice: VendorSide;
+    master: VendorSide | null;
+    labels: { gstin_format: string | null; gstin_master: string | null; bank: string | null; bank_result: string | null };
+  } | null;
   decision: {
     status: string;
     reason_codes: string[];
@@ -97,7 +168,27 @@ export type RunDetail = {
     notes: string[];
     evidence: Evidence[];
     committed: boolean;
-    po_candidates: { po_number: string; score: number; plausible: boolean }[];
+    committed_at: string | null;
+    decided_by: string;
+    policy_version: string;
+    matched_po: string | null;
+    po_candidates: { po_number: string; score: number; plausible: boolean; breakdown: Record<string, unknown> }[];
+    duplicate_matches: DuplicateMatch[];
+    po_detail: PoDetail | null;
   } | null;
   trusted_contact?: { name: string; phone: string; email: string | null };
 };
+
+export type AuditLog = {
+  run_id: string;
+  events: { event_id: number; type: string; payload: Record<string, any>; created_at: string }[];
+  overrides: {
+    override_id: string; action: string; original_status: string; new_status: string; codes_overridden: string[];
+    reviewer_name: string; reason: string; bank_verification: { verified_with: string; channel: string; outcome: string } | null;
+    confirmed_po: string | null; commit_result: string; block_reason: string | null; created_at: string;
+  }[];
+};
+
+export async function getAudit(runId: string): Promise<AuditLog> {
+  return asJson(await fetch(`${BACKEND}/api/runs/${runId}/audit`, { cache: "no-store" }));
+}

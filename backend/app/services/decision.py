@@ -47,11 +47,12 @@ def decide_run(conn: sqlite3.Connection, run_id: str, extraction: InvoiceExtract
         conn.execute(
             "INSERT INTO decisions (decision_id, run_id, status, reason_codes, evidence, notes, summary, next_actions, "
             "matched_po, po_candidates, decided_by, policy_version, committed, committed_at, created_at, updated_at, "
-            "commit_plan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'rules', ?, 0, NULL, ?, ?, ?)",
+            "commit_plan, duplicate_matches, po_detail) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'rules', ?, 0, NULL, ?, ?, ?, ?, ?)",
             ("D-" + uuid.uuid4().hex[:12], run_id, result.status, json.dumps(result.reason_codes),
              json.dumps(result.evidence), json.dumps(result.notes), json.dumps(result.summary),
              json.dumps(result.next_actions), result.matched_po, json.dumps(result.po_candidates),
-             policy.version, now, now, json.dumps(result.commit_plan) if result.commit_plan else None))
+             policy.version, now, now, json.dumps(result.commit_plan) if result.commit_plan else None,
+             json.dumps(result.duplicate_matches), json.dumps(result.po_detail) if result.po_detail else None))
         if result.ledger is not None:
             # One ledger row per decided invoice (§8.5). An APPROVE row is confirmed by commit.
             conn.execute("DELETE FROM invoice_ledger WHERE run_id = ?", (run_id,))

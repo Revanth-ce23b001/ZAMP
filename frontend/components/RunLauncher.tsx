@@ -32,8 +32,8 @@ export default function RunLauncher() {
     setMessage(null);
     try {
       const r = await submit();
-      const q = r.existing ? "?existing=1" : "";
-      router.push(`/runs/${r.run_id}/live${q}`);
+      // FR-004 / §10.3: an already-processed file opens its decision screen with the banner.
+      router.push(r.existing ? `/runs/${r.run_id}?existing=1` : `/runs/${r.run_id}/live`);
     } catch (e) {
       setMessage((e as ApiError).message ?? "Upload failed");
       setBusy(false);

@@ -7,8 +7,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import ReviewPanel from "@/components/ReviewPanel";
-import { eventsUrl, fileUrl, getRun, retryRun, type Evidence, type ReviewResult, type RunDetail } from "@/lib/client";
+import Link from "next/link";
+import { eventsUrl, fileUrl, getRun, retryRun, type Evidence, type RunDetail } from "@/lib/client";
 
 const STAGES = [
   ["INGEST", "Ingest"], ["EXTRACT", "Extract"], ["VALIDATE", "Validate"], ["VENDOR_BANK", "Vendor & Bank"],
@@ -82,14 +82,6 @@ export default function LiveRun({ runId, existing }: { runId: string; existing: 
     }).catch(() => undefined);
   }, [runId]);
 
-  function onReviewed(r: ReviewResult) {
-    if (r.commit_result !== "not_applicable") {
-      setCommitMsg(r.message);
-      setRows((prev) => ({ ...prev, COMMIT: { ...prev.COMMIT, status: r.commit_result === "committed" ? "PASSED" : "FAILED",
-                                              summary: r.message } }));
-    }
-    refresh();
-  }
 
   useEffect(() => {
     ended.current = false;
@@ -172,9 +164,12 @@ export default function LiveRun({ runId, existing }: { runId: string; existing: 
             : decision.reason_codes.map((c) => (
                 <span key={c} className="rounded bg-gray-100 px-2 py-0.5 font-mono text-xs text-gray-800">{c}</span>))}
           {commitMsg && <span className="text-sm text-gray-600">· {commitMsg}</span>}
+          {ended.current && (
+            <Link href={`/runs/${runId}`} className="ml-auto rounded bg-blue-600 px-3 py-1 text-sm font-semibold text-white"
+                  data-testid="view-decision">View decision</Link>
+          )}
         </div>
       )}
-      {detail?.decision?.status === "HOLD" && <ReviewPanel key={detail.decision.reason_codes.join()} detail={detail} onDone={onReviewed} />}
       {error && (
         <div role="alert" className="mt-4 flex items-center gap-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
           <span className="font-semibold">ERROR</span><span className="flex-1">{error}</span>

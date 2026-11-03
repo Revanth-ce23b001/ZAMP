@@ -235,11 +235,12 @@ def confirm_po(conn: sqlite3.Connection, run_id: str, body: dict, policy: Policy
 
         conn.execute(
             "UPDATE decisions SET status = ?, reason_codes = ?, summary = ?, next_actions = ?, evidence = ?, "
-            "notes = ?, matched_po = ?, decided_by = 'rules_after_review', commit_plan = ?, updated_at = ? "
-            "WHERE run_id = ?",
+            "notes = ?, matched_po = ?, decided_by = 'rules_after_review', commit_plan = ?, po_detail = ?, "
+            "updated_at = ? WHERE run_id = ?",
             (status, json.dumps([c for c, _, _ in combined]), json.dumps([s for _, s, _ in combined]),
              json.dumps([a for _, _, a in combined]), json.dumps(evidence), json.dumps(notes), po_number,
-             json.dumps(fresh.commit_plan) if fresh.commit_plan else None, now, run_id))
+             json.dumps(fresh.commit_plan) if fresh.commit_plan else None,
+             json.dumps(fresh.po_detail) if fresh.po_detail else None, now, run_id))
         if fresh.ledger:
             conn.execute("UPDATE invoice_ledger SET po_number = ?, line_signature = ?, status = ? WHERE run_id = ?",
                          (po_number, json.dumps(fresh.ledger["line_signature"]), status, run_id))

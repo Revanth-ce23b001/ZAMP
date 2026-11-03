@@ -315,6 +315,20 @@ def test_run_file_streams_pdf(settings):
         assert c.get("/api/runs/nope/file").status_code == 404
 
 
+def test_parallel_requests_on_a_real_server(settings):
+    """Regression: a request's DB connection may be created on one threadpool thread and used on
+    another; concurrent browser requests (run detail + audit + PDF) must not fail."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    with make(settings, NoProvider(), live=True) as c:
+        rid = process(c, "T01")
+        paths = [f"/api/runs/{rid}", f"/api/runs/{rid}/audit", "/api/pos", "/api/vendors", "/api/dashboard",
+                 f"/api/runs/{rid}/file", "/api/runs", "/api/policy"] * 6
+        with ThreadPoolExecutor(max_workers=12) as pool:
+            codes = list(pool.map(lambda p: c.get(p).status_code, paths))
+        assert codes == [200] * len(paths)
+
+
 def test_cors_allows_frontend_origin_for_sse(settings):
     with make(settings, NoProvider()) as c:
         rid = process(c, "T01")

@@ -22,7 +22,7 @@ def tables(conn):
 
 def test_migration_runs_on_empty_db(empty_db):
     assert tables(empty_db) == set()
-    versions = ["0001_initial", "0002_decision_commit_plan"]
+    versions = ["0001_initial", "0002_decision_commit_plan", "0003_decision_details"]
     assert migrate(empty_db) == versions
     assert EXPECTED_TABLES <= tables(empty_db)
     assert applied_versions(empty_db) == versions

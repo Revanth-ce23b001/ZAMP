@@ -41,6 +41,9 @@ class ReplayCached:
 
     def extract(self, pages, schema=InvoiceExtraction):
         time.sleep(EXTRACTION_SECONDS)
+        if pages.method == "vision":                 # the scan (T-05) has no text to match on
+            r = next(r for r in self.records if r["ingest_method"] == "vision")
+            return ExtractionResult(schema.model_validate(r["payload"]), self.provider, self.model, Usage(calls=1), 1)
         text = "\n".join(pages.texts)
         for r in self.records:
             number = (r["payload"]["invoice_number"] or {}).get("value")
@@ -191,34 +194,119 @@ def test_t01_runs_end_to_end_live_in_the_browser(browser):
 
 
 def test_same_file_lands_on_existing_run(browser):
+    """FR-004 / §10.3: re-uploading a processed file opens its decision screen with the banner."""
     page = browser.new_page()
     page.goto(f"{WEB}/work-queue")
     page.get_by_test_id("upload-input").set_input_files(str(T01))
-    page.wait_for_url("**/runs/*/live?existing=1", timeout=20000)
-    run_id = page.url.split("/runs/")[1].split("/")[0]
+    page.wait_for_url("**/runs/*?existing=1", timeout=20000)
+    run_id = page.url.split("/runs/")[1].split("?")[0]
     assert run_id == STATE["t01_run_id"]
     page.get_by_text("This exact file was already processed").wait_for(timeout=10000)
-    page.get_by_test_id("decision-banner").wait_for(timeout=20000)
+    page.get_by_test_id("decision-header").wait_for(timeout=20000)
     page.screenshot(path=str(SHOTS / "5_existing_run.png"), full_page=True)
     page.close()
 
 
-def start(browser, prefix):
+# ======================================================================= decision details (§10.5)
+
+from tests.conftest import fixture_records  # noqa: E402
+
+ACCOUNTS = [v["bank_account_number"] for v in fixture_records("vendors.json")] + ["50100045671234"]
+PHONES = [v["trusted_contact_phone"] for v in fixture_records("vendors.json")]
+TABS = [("Extracted data", "tab-extracted"), ("Vendor & bank", "tab-vendor"), ("Duplicates", "tab-duplicates"),
+        ("PO match", "tab-po"), ("Evidence", "tab-evidence"), ("Audit", "tab-audit")]
+
+
+def run_sample(browser, prefix):
+    """Run a sample from the launcher, let the live screen finish, then open the decision."""
     page = browser.new_page(viewport={"width": 1400, "height": 1100})
     page.goto(f"{WEB}/work-queue")
     page.select_option("#sample", next((BACKEND_DIR / "samples").glob(f"{prefix}_*.pdf")).name)
     page.get_by_role("button", name="Run").click()
     page.wait_for_url("**/runs/*/live", timeout=20000)
-    page.get_by_test_id("review-panel").wait_for(timeout=30000)
+    page.get_by_test_id("view-decision").click(timeout=40000)
+    page.get_by_test_id("decision-header").wait_for(timeout=20000)
     return page
 
 
-def test_t03_bank_override_in_the_browser(browser):
-    """T-23 then T-22: Approve stays disabled until the outcome is 'verified'; a 'not verified'
-    attempt is recorded and the invoice stays on HOLD; a verified override commits."""
-    page = start(browser, "T03")
-    panel = page.get_by_test_id("review-panel")
-    assert "Verify with Meena Raghavan, +91 98400 11223 (vendor master)" in panel.inner_text()
+def check_decision_screen(page, status, invoice_no, vendor, total, decided_by):
+    """Every element PRD §10.5 lists, on one run. Returns the page HTML."""
+    header = page.get_by_test_id("decision-header").inner_text()
+    assert page.get_by_test_id("decision-status").first.inner_text() == status
+    for part in (invoice_no, vendor, total, "R-", f"Decided by {decided_by}", "Policy"):
+        assert part in header, (part, header)
+    page.get_by_test_id("why-panel").wait_for()
+    for label, testid in TABS:
+        page.get_by_role("tab", name=label).click()
+        page.get_by_test_id(testid).wait_for(timeout=10000)
+    page.get_by_role("tab", name="Extracted data").click()
+    assert page.get_by_test_id("line-items").locator("tbody tr").count() >= 1
+    assert page.get_by_test_id("arithmetic").locator("tbody tr").count() >= 4
+    page.get_by_role("tab", name="Evidence").click()
+    assert page.get_by_test_id("evidence-row").count() > 5
+    page.get_by_role("tab", name="Audit").click()
+    assert "Decision:" in page.get_by_test_id("tab-audit").inner_text()
+    assert page.locator("iframe[title='Invoice PDF']").count() == 1
+    assert (page.get_by_test_id("review-panel").count() == 1) is (status == "HOLD")
+    html = page.content()
+    for acct in ACCOUNTS:
+        assert acct not in html, "full account number in page"
+    return html
+
+
+def test_t01_decision_screen(browser):
+    page = browser.new_page(viewport={"width": 1400, "height": 1100})
+    page.goto(f"{WEB}/runs/{STATE['t01_run_id']}")
+    page.get_by_test_id("decision-header").wait_for(timeout=20000)
+    html = check_decision_screen(page, "APPROVE", "SLST/2026/0512", "Sri Lakshmi Steel Traders", "₹1,13,850.00", "Rules")
+    assert "All checks passed" in page.get_by_test_id("why-panel").inner_text()
+    page.get_by_role("tab", name="Extracted data").click()
+    rows = page.get_by_test_id("arithmetic").inner_text()
+    assert "E4" in rows and "Failed" not in rows
+    assert page.get_by_test_id("security-banner").count() == 0
+    assert not any(ph in html for ph in PHONES)                  # no trusted contact on a clean run
+    page.get_by_role("tab", name="PO match").click()
+    lines = page.get_by_test_id("po-lines").inner_text()
+    assert "alias" in lines and "code" in lines                   # T-01 line 1 pairs by alias
+    page.screenshot(path=str(SHOTS / "9_t01_decision.png"), full_page=True)
+    page.close()
+
+
+def test_t02_decision_screen_po_tab(browser):
+    page = run_sample(browser, "T02")
+    check_decision_screen(page, "HOLD", "INV-SL-0489", "Sri Lakshmi Steel Traders", "₹1,18,000.00", "Rules")
+    why = page.get_by_test_id("why-panel").inner_text()
+    assert "Taxable value ₹1,00,000 exceeds remaining ₹80,000 (allowed overrun ₹1,000) on PO-1041." in why
+    assert "TMT-20: 220 approved + 100 invoiced exceeds PO qty 300 by 20." in why
+    page.get_by_role("tab", name="PO match").click()
+    assert "₹80,000.00" in page.get_by_test_id("po-remaining").inner_text()           # remaining, not 81,000
+    assert "₹1,000.00" in page.get_by_test_id("po-allowed-overrun").inner_text()      # separate value
+    assert "₹3,00,000.00" in page.get_by_test_id("po-po-total").inner_text()
+    assert "₹2,20,000.00" in page.get_by_test_id("po-previously-approved").inner_text()
+    assert "300 / 220 / 100 / 20" in page.get_by_test_id("po-lines").inner_text()
+    page.get_by_role("tab", name="Duplicates").click()
+    assert "Similar invoice exists: INV-SL-0467" in page.get_by_test_id("tab-duplicates").inner_text()
+    page.screenshot(path=str(SHOTS / "10_t02_po_match.png"), full_page=True)
+    page.close()
+
+
+def test_t03_decision_screen_and_bank_override(browser):
+    """§10.5 security banner and vendor tab, then T-23/T-22 through the §10.6 review panel."""
+    page = run_sample(browser, "T03")
+    check_decision_screen(page, "HOLD", "CPPL/7781", "Coromandel Packaging Pvt Ltd", "₹49,560.00", "Rules")
+    banner = page.get_by_test_id("security-banner").inner_text()
+    assert "Verify with Meena Raghavan, +91 98400 11223 (vendor master)" in banner
+    assert "Do not use contact details printed on this invoice" in banner
+    page.get_by_role("tab", name="Vendor & bank").click()
+    vendor = page.get_by_test_id("tab-vendor")
+    text = vendor.inner_text()
+    assert "ICIC0005678" in text and "HDFC0005512" in text           # IFSC in full (DEC-001)
+    assert text.count("XXXX XXXX 4471") == 2                         # masked on both sides
+    assert "Format valid" in text and "Matches vendor master" in text and "IFSC differs" in text
+    assert vendor.locator("tr[data-mismatch='1']").count() >= 1       # mismatched cell highlighted
+    assert "Meena" not in text and "98400" not in text                # contact never in this tab
+    page.screenshot(path=str(SHOTS / "11_t03_decision.png"), full_page=True)
+
     approve = page.get_by_role("button", name="Approve (override)")
     page.get_by_label("Reviewer name").fill("Ashrith")
     page.get_by_label("Reason").fill("Vendor confirmed the new account by phone.")
@@ -229,43 +317,60 @@ def test_t03_bank_override_in_the_browser(browser):
     assert approve.is_disabled()
     page.get_by_role("button", name="Record attempt (stays on HOLD)").click()
     page.get_by_text("Bank verification not confirmed: invoice remains on HOLD").wait_for(timeout=10000)
-    assert page.get_by_test_id("decision-banner").inner_text().startswith("HOLD")
-
+    assert page.get_by_test_id("decision-status").first.inner_text() == "HOLD"
     page.get_by_label("Outcome").select_option("verified")
     assert approve.is_enabled()
     approve.click()
-    page.get_by_text("Approved and committed: PO-1044 remaining balance ₹42,000").first.wait_for(timeout=10000)
-    page.locator('[data-stage="COMMIT"][data-status="PASSED"]').wait_for(timeout=10000)
-    assert page.get_by_test_id("decision-banner").inner_text().startswith("APPROVE")
-    assert page.get_by_test_id("review-panel").count() == 0          # no override controls on APPROVE (FR-106)
-    page.screenshot(path=str(SHOTS / "7_t03_override_committed.png"), full_page=True)
+    page.get_by_test_id("review-panel").wait_for(state="detached", timeout=15000)   # APPROVE: no override controls
+    assert page.get_by_test_id("decision-status").first.inner_text() == "APPROVE"
+    assert "Reviewer override" in page.get_by_test_id("decision-header").inner_text()
+    page.get_by_role("tab", name="Audit").click()
+    records = page.get_by_test_id("override-records").inner_text()
+    assert "not verified" in records and "committed" in records
+    page.screenshot(path=str(SHOTS / "12_t03_override_audit.png"), full_page=True)
     page.close()
 
 
-def test_t04_confirm_po_in_the_browser(browser):
-    page = start(browser, "T04")
+def test_t04_decision_screen_and_confirm_po(browser):
+    page = run_sample(browser, "T04")
+    check_decision_screen(page, "HOLD", "NIT/1123", "Nandi IT Solutions Pvt Ltd", "₹3,30,400.00", "Rules")
+    page.get_by_role("tab", name="PO match").click()
+    cands = page.get_by_test_id("po-candidates").inner_text()
+    assert "PO-1031" in cands and "100" in cands and "PO-1036" in cands and "70" in cands
+    assert "(inferred)" in page.get_by_test_id("po-header").inner_text()
     page.get_by_label("Reviewer name").fill("Ashrith")
     page.get_by_label("Reason").fill("Requester confirmed PO-1031 by email.")
     page.get_by_label("PO-1031 (score 100, plausible)").check()
     page.get_by_role("button", name="Confirm PO").click()
-    page.get_by_text("Approved and committed: PO-1031 remaining balance ₹5,35,000").first.wait_for(timeout=10000)
-    assert page.get_by_test_id("decision-banner").inner_text().startswith("APPROVE")
-    assert page.locator('[data-stage="PO_MATCH"]').get_attribute("data-status") == "PASSED"
-    page.screenshot(path=str(SHOTS / "8_t04_confirm_po.png"), full_page=True)
+    page.get_by_test_id("review-panel").wait_for(state="detached", timeout=15000)
+    assert page.get_by_test_id("decision-status").first.inner_text() == "APPROVE"
+    assert "Rules after reviewer PO confirmation" in page.get_by_test_id("decision-header").inner_text()
+    page.get_by_role("tab", name="PO match").click()
+    assert "(confirmed)" in page.get_by_test_id("po-header").inner_text()
+    page.screenshot(path=str(SHOTS / "13_t04_confirmed.png"), full_page=True)
     page.close()
 
 
-def test_hold_run_shows_codes_and_commit_not_applicable(browser):
-    page = browser.new_page()
-    page.goto(f"{WEB}/work-queue")
-    page.select_option("#sample", next((BACKEND_DIR / "samples").glob("T02_*.pdf")).name)
-    page.get_by_role("button", name="Run").click()
-    page.wait_for_url("**/runs/*/live", timeout=20000)
-    banner = page.get_by_test_id("decision-banner")
-    banner.wait_for(timeout=30000)
-    text = banner.inner_text()
-    assert text.startswith("HOLD") and "QUANTITY_EXCEEDS_PO" in text and "PO_BALANCE_EXCEEDED" in text
-    assert page.locator('[data-stage="PO_MATCH"]').get_attribute("data-status") == "FAILED"
-    assert page.locator('[data-stage="COMMIT"]').get_attribute("data-status") == "NOT_CHECKED"
-    page.screenshot(path=str(SHOTS / "6_t02_hold.png"), full_page=True)
+def test_t05_decision_screen_duplicates(browser):
+    page = run_sample(browser, "T05")
+    check_decision_screen(page, "REJECT", "INV-2041", "Godavari Chemicals Ltd", "₹1,06,200.00", "Rules")
+    assert "Same vendor and invoice number as INV-2041 (12 Oct, APPROVE)." in page.get_by_test_id("why-panel").inner_text()
+    page.get_by_role("tab", name="Duplicates").click()
+    dup = page.get_by_test_id("tab-duplicates").inner_text().lower()      # headers are CSS upper-case
+    for part in ("matched (confirmed)", "inv2041", "2026-10-12", "₹1,06,200.00", "solv-ipa × 5", "seeded history"):
+        assert part in dup, part
+    assert dup.count("solv-ipa × 5") == 2                                # this invoice's lines beside the original's
+    page.screenshot(path=str(SHOTS / "14_t05_duplicates.png"), full_page=True)
     page.close()
+
+
+def test_built_frontend_has_no_forbidden_labels(servers):
+    """FR-034: these claims must not appear anywhere in the built frontend."""
+    hits = []
+    for f in (FRONTEND_DIR / ".next").rglob("*"):
+        if f.is_file() and f.suffix in (".js", ".html", ".json", ".rsc", ".txt", ".css", ".body", ""):
+            text = f.read_text(encoding="utf-8", errors="ignore").lower()
+            for label in ("gst verified", "account verified", "goods received"):
+                if label in text:
+                    hits.append((str(f.relative_to(FRONTEND_DIR)), label))
+    assert hits == []

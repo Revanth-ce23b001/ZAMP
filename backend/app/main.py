@@ -139,46 +139,12 @@ def create_app(settings: Settings | None = None,
 
     @app.get("/api/runs/{run_id}")
     def get_run(run_id: str, conn: sqlite3.Connection = Depends(get_conn)) -> JSONResponse:
-        """FR-110 (subset for the live screen). Masked: account numbers never leave unmasked
-        (FR-041); trusted-contact phone/email only when BANK_DETAILS_MISMATCH is a reason code (FR-044)."""
-        run = conn.execute("SELECT * FROM runs WHERE run_id = ?", (run_id,)).fetchone()
-        if run is None:
+        """FR-110: everything the live and decision details screens show. Masked: account numbers
+        never leave unmasked (FR-041); trusted-contact phone/email only when BANK_DETAILS_MISMATCH
+        is a reason code (FR-044)."""
+        body = views.run_detail(conn, run_id)
+        if body is None:
             return JSONResponse(status_code=404, content={"error": "run_not_found", "message": "Run not found"})
-        body = {
-            "run_id": run_id, "run_number": run["run_number"], "run_display": display_number(run["run_number"]),
-            "file_name": run["file_name"], "status": run["status"], "ingest_method": run["ingest_method"],
-            "stage_results": json.loads(run["stage_results"]), "error_message": run["error_message"],
-            "created_at": run["created_at"], "started_at": run["started_at"],
-            "completed_at": run["completed_at"], "duration_ms": run["duration_ms"],
-            "queue_position": queue_position(conn, run["run_number"]) if run["status"] == "QUEUED" else None,
-            "extraction": None, "decision": None,
-        }
-        ext = conn.execute("SELECT * FROM extractions WHERE run_id = ?", (run_id,)).fetchone()
-        if ext:
-            payload = json.loads(ext["payload"])
-            acct = payload.get("bank_account_number") or {}
-            if acct.get("value"):
-                acct["value"] = mask_account_number(acct["value"])
-            body["extraction"] = {"provider": ext["provider"], "model": ext["model"], "cached": bool(ext["cached"]),
-                                  "ingest_method": ext["ingest_method"], "extracted_at": ext["extracted_at"],
-                                  "fields": payload}
-        dec = conn.execute("SELECT * FROM decisions WHERE run_id = ?", (run_id,)).fetchone()
-        if dec:
-            codes = json.loads(dec["reason_codes"])
-            body["decision"] = {
-                "status": dec["status"], "reason_codes": codes, "summary": json.loads(dec["summary"]),
-                "next_actions": json.loads(dec["next_actions"]), "notes": json.loads(dec["notes"]),
-                "evidence": json.loads(dec["evidence"]), "matched_po": dec["matched_po"],
-                "po_candidates": json.loads(dec["po_candidates"]), "decided_by": dec["decided_by"],
-                "policy_version": dec["policy_version"], "committed": bool(dec["committed"]),
-                "committed_at": dec["committed_at"],
-            }
-            if "BANK_DETAILS_MISMATCH" in codes:
-                led = conn.execute("SELECT vendor_id FROM invoice_ledger WHERE run_id = ?", (run_id,)).fetchone()
-                v = conn.execute("SELECT trusted_contact_name, trusted_contact_phone, trusted_contact_email "
-                                 "FROM vendors WHERE vendor_id = ?", (led["vendor_id"],)).fetchone() if led else None
-                if v:
-                    body["trusted_contact"] = {"name": v[0], "phone": v[1], "email": v[2], "source": "vendor master"}
         return JSONResponse(body)
 
     @app.get("/api/runs/{run_id}/file")
