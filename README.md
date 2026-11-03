@@ -9,7 +9,8 @@ deterministic rules decide APPROVE, HOLD or REJECT; humans resolve exceptions.
 - Seed data: [`backend/seed/README_FIXTURES.md`](backend/seed/README_FIXTURES.md) (`fixtures-v1`, synthetic)
 - Wireframe (layout and navigation only; its sample data is placeholder): [`docs/wireframes/`](docs/wireframes/)
 
-**Status: Day 3A.** The full backend pipeline runs end to end: upload, sequential worker,
+**Status: Day 3B.** Live processing in the browser: Work Queue has a sample picker and a PDF drop
+zone; the live screen streams the seven stages and the commit over SSE. Day 3A summary: The full backend pipeline runs end to end: upload, sequential worker,
 Ingest, Extract (Gemini with an ordered fallback chain, cached by file hash, cache snapshot
 shipped for the samples), the pure rules engine for stages 3-7 (Validate, Vendor & Bank,
 Duplicate, PO Match, Decide) and `commit_approval`. All 15 samples produce exactly the PRD §13
@@ -53,7 +54,8 @@ Frontend (`frontend/.env.local`). Both are **server-only**; never give them a `N
 
 | Variable | Purpose |
 |---|---|
-| `BACKEND_URL` | Backend origin, e.g. `http://localhost:8000`. |
+| `BACKEND_URL` | Backend origin for server code (reset route, policy page), e.g. `http://localhost:8000`. |
+| `NEXT_PUBLIC_BACKEND_ORIGIN` | Backend origin for the **browser** (uploads, run data, the SSE live stream). Public, not a secret; inlined at build. The browser connects directly because a serverless proxy buffers streams; the backend's `FRONTEND_ORIGIN` must allow this app. |
 | `DEMO_RESET_TOKEN` | Same value as the backend. Added by `app/api/demo/reset/route.ts`; never sent to the browser. |
 
 ## Commands
@@ -68,6 +70,9 @@ Backend (from `backend/`):
 | Run with the cache disabled | add `EXTRACTION_CACHE=off` to `backend/.env`, or set it in the shell first (PowerShell: `$env:EXTRACTION_CACHE="off"`) |
 | All offline tests | `python -m pytest -q` (live provider tests are skipped) |
 | PRD §13 scenarios only (served from the cache) | `python -m pytest tests/test_scenarios.py -q` |
+| SSE and live-run tests (real uvicorn server) | `python -m pytest tests/test_live.py -q` |
+| Browser end-to-end (builds the frontend; no provider calls) | `python -m pytest tests/test_e2e_browser.py --run-e2e -s` (screenshots in `backend/data/e2e/`) |
+| Watch a run's live stream | `curl -N http://localhost:8000/api/runs/<run_id>/events` (add `-H "Last-Event-ID: 14"` to resume after event 14) |
 | Rules unit tests only | `python -m pytest tests/test_rules.py tests/test_commit.py -q` |
 | Warm the cache + export the snapshot (live calls) | `python -m app.tools.warm_cache` (`--only T06,T09 --force` to redo files) |
 | Check cached extractions against the printed values | `python -m app.tools.extraction_report` |
@@ -125,6 +130,9 @@ per 15 min). The reset is one atomic transaction; the extraction cache and the
 | GET | `/api/samples` | Sample PDFs in `backend/samples/` |
 | POST | `/api/samples/{name}/process` | Submits a sample through the same upload path |
 | POST | `/api/runs/{run_id}/retry` | Re-queues an ERROR run under the same `run_id` |
+| GET | `/api/runs/{run_id}` | Run, stage results, extraction (account masked), decision with evidence; trusted-contact phone/email only for `BANK_DETAILS_MISMATCH` (FR-044) |
+| GET | `/api/runs/{run_id}/events` | SSE (FR-114): `run`, `queued`, `stage_started`, `stage_completed`, `decision`, `commit`, `error`, `retry`, `end`. Replayed from stored audit events; resumes from `Last-Event-ID`; keepalive every 15 s; closes after the decision and any commit |
+| GET | `/api/runs/{run_id}/file` | The uploaded PDF (preview) |
 | POST | `/api/demo/reset` | Header `X-Demo-Reset-Token`; body `{"confirm": "RESET", "requester_label": "..."}`. `200 {reset_id, restored}`, `400`, `401`, `429`, `500` |
 
 ## Layout

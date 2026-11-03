@@ -2,6 +2,7 @@
 
 Run from backend/:  uvicorn app.main:app --env-file .env
 """
+import json
 import sqlite3
 from collections.abc import Callable, Iterator
 from contextlib import asynccontextmanager
@@ -10,7 +11,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 from app.config import ChainEntry, ConfigError, Settings, load_settings
 from app.db.cache_snapshot import load_snapshot_if_empty
@@ -19,6 +20,7 @@ from app.db.migrate import migrate
 from app.db.seed import FIXTURE_VERSION, is_seeded, seed, table_counts
 from app.policy import Policy, load_policy
 from app.services import audit
+from app.services.events import queue_position, run_events
 from app.services.extraction.base import ExtractionAdapter
 from app.services.reset import ResetService
 from app.services.upload import PDF_MIME, UploadError, display_number, submit
@@ -86,6 +88,7 @@ def create_app(settings: Settings | None = None,
     app.state.settings = settings
     app.state.policy = policy
     app.state.worker = worker
+    app.state.sse_keepalive_seconds = 15.0        # proxies (Render, Vercel) drop idle streams
     upload_limits = policy.assumption("A-23")
 
     def _submit(file_name: str, data: bytes, content_type: str | None) -> JSONResponse:
@@ -126,6 +129,72 @@ def create_app(settings: Settings | None = None,
             return JSONResponse(status_code=404, content={"error": "sample_not_found", "message": "Sample not found"})
         return await run_in_threadpool(_submit, name, path.read_bytes(), PDF_MIME)
 
+    @app.get("/api/runs/{run_id}/events")
+    async def run_events_stream(run_id: str, request: Request, last_event_id: int | None = None) -> StreamingResponse:
+        """FR-114 SSE. Replays every stored event (or those after Last-Event-ID), then follows live.
+        The browser connects here directly; streams are not proxied through Next.js."""
+        header = request.headers.get("last-event-id")
+        resume = last_event_id if last_event_id is not None else (int(header) if header and header.isdigit() else None)
+        return StreamingResponse(
+            run_events(settings.database_path, run_id, resume, request.is_disconnected,
+                       keepalive_seconds=request.app.state.sse_keepalive_seconds),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
+        )
+
+    @app.get("/api/runs/{run_id}")
+    def get_run(run_id: str, conn: sqlite3.Connection = Depends(get_conn)) -> JSONResponse:
+        """FR-110 (subset for the live screen). Masked: account numbers never leave unmasked
+        (FR-041); trusted-contact phone/email only when BANK_DETAILS_MISMATCH is a reason code (FR-044)."""
+        run = conn.execute("SELECT * FROM runs WHERE run_id = ?", (run_id,)).fetchone()
+        if run is None:
+            return JSONResponse(status_code=404, content={"error": "run_not_found", "message": "Run not found"})
+        body = {
+            "run_id": run_id, "run_number": run["run_number"], "run_display": display_number(run["run_number"]),
+            "file_name": run["file_name"], "status": run["status"], "ingest_method": run["ingest_method"],
+            "stage_results": json.loads(run["stage_results"]), "error_message": run["error_message"],
+            "created_at": run["created_at"], "started_at": run["started_at"],
+            "completed_at": run["completed_at"], "duration_ms": run["duration_ms"],
+            "queue_position": queue_position(conn, run["run_number"]) if run["status"] == "QUEUED" else None,
+            "extraction": None, "decision": None,
+        }
+        ext = conn.execute("SELECT * FROM extractions WHERE run_id = ?", (run_id,)).fetchone()
+        if ext:
+            payload = json.loads(ext["payload"])
+            acct = payload.get("bank_account_number") or {}
+            if acct.get("value"):
+                acct["value"] = mask_account_number(acct["value"])
+            body["extraction"] = {"provider": ext["provider"], "model": ext["model"], "cached": bool(ext["cached"]),
+                                  "ingest_method": ext["ingest_method"], "extracted_at": ext["extracted_at"],
+                                  "fields": payload}
+        dec = conn.execute("SELECT * FROM decisions WHERE run_id = ?", (run_id,)).fetchone()
+        if dec:
+            codes = json.loads(dec["reason_codes"])
+            body["decision"] = {
+                "status": dec["status"], "reason_codes": codes, "summary": json.loads(dec["summary"]),
+                "next_actions": json.loads(dec["next_actions"]), "notes": json.loads(dec["notes"]),
+                "evidence": json.loads(dec["evidence"]), "matched_po": dec["matched_po"],
+                "po_candidates": json.loads(dec["po_candidates"]), "decided_by": dec["decided_by"],
+                "policy_version": dec["policy_version"], "committed": bool(dec["committed"]),
+                "committed_at": dec["committed_at"],
+            }
+            if "BANK_DETAILS_MISMATCH" in codes:
+                led = conn.execute("SELECT vendor_id FROM invoice_ledger WHERE run_id = ?", (run_id,)).fetchone()
+                v = conn.execute("SELECT trusted_contact_name, trusted_contact_phone, trusted_contact_email "
+                                 "FROM vendors WHERE vendor_id = ?", (led["vendor_id"],)).fetchone() if led else None
+                if v:
+                    body["trusted_contact"] = {"name": v[0], "phone": v[1], "email": v[2], "source": "vendor master"}
+        return JSONResponse(body)
+
+    @app.get("/api/runs/{run_id}/file")
+    def get_run_file(run_id: str, conn: sqlite3.Connection = Depends(get_conn)):
+        """FR-110: the uploaded PDF for preview."""
+        run = conn.execute("SELECT file_path, file_name FROM runs WHERE run_id = ?", (run_id,)).fetchone()
+        if run is None or not Path(run["file_path"]).is_file():
+            return JSONResponse(status_code=404, content={"error": "file_not_found", "message": "File not found"})
+        return FileResponse(run["file_path"], media_type="application/pdf",
+                            headers={"Content-Disposition": f'inline; filename="{run["file_name"]}"'})
+
     @app.post("/api/runs/{run_id}/retry")
     def retry_run(run_id: str) -> JSONResponse:
         """FR-018, FR-094: an ERROR run is re-queued under the same run_id."""
@@ -152,7 +221,9 @@ def create_app(settings: Settings | None = None,
         CORSMiddleware,
         allow_origins=[settings.frontend_origin],
         allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type"],
+        # The browser calls the backend directly for uploads, run data and the SSE stream
+        # (streams are not proxied through Next.js); Last-Event-ID is sent on reconnect.
+        allow_headers=["Content-Type", "Last-Event-ID"],
     )
 
     app.state.reset_service = ResetService(settings, policy)

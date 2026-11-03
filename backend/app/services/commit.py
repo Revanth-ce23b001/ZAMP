@@ -91,7 +91,8 @@ def _commit(conn: sqlite3.Connection, run_id: str, rules: Rules) -> CommitResult
                      (json.dumps(codes), json.dumps(summary), json.dumps(actions), now, run_id))
         conn.execute("UPDATE invoice_ledger SET status = 'HOLD' WHERE run_id = ?", (run_id,))
         audit.add(conn, run_id, "commit_blocked", {"codes": [c for c, _ in failing], "message": message,
-                                                   "po_number": po["po_number"]})
+                                                   "po_number": po["po_number"],
+                                                   "remaining": po["po_total"] - committed_value})
         return CommitResult("blocked", tuple(c for c, _ in failing), message)
 
     for line in plan["lines"]:

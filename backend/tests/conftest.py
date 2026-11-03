@@ -17,15 +17,19 @@ TEST_TOKEN = "test-reset-token"
 def pytest_addoption(parser):
     parser.addoption("--run-live", action="store_true", default=False,
                      help="run tests marked 'live' that call the real LLM provider (costs money)")
+    parser.addoption("--run-e2e", action="store_true", default=False,
+                     help="run browser end-to-end tests (builds the frontend; no provider calls)")
 
 
 def pytest_collection_modifyitems(config, items):
-    if config.getoption("--run-live"):
-        return
-    skip = pytest.mark.skip(reason="live provider test; use --run-live")
-    for item in items:
-        if "live" in item.keywords:
-            item.add_marker(skip)
+    for marker, option, reason in (("live", "--run-live", "live provider test; use --run-live"),
+                                   ("e2e", "--run-e2e", "browser end-to-end test; use --run-e2e")):
+        if config.getoption(option):
+            continue
+        skip = pytest.mark.skip(reason=reason)
+        for item in items:
+            if marker in item.keywords:
+                item.add_marker(skip)
 
 
 def fixture_records(name: str) -> list[dict]:
