@@ -7,7 +7,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { eventsUrl, fileUrl, getRun, retryRun, type Evidence, type RunDetail } from "@/lib/client";
+import ReviewPanel from "@/components/ReviewPanel";
+import { eventsUrl, fileUrl, getRun, retryRun, type Evidence, type ReviewResult, type RunDetail } from "@/lib/client";
 
 const STAGES = [
   ["INGEST", "Ingest"], ["EXTRACT", "Extract"], ["VALIDATE", "Validate"], ["VENDOR_BANK", "Vendor & Bank"],
@@ -69,8 +70,26 @@ export default function LiveRun({ runId, existing }: { runId: string; existing: 
     getRun(runId).then((d) => {
       setDetail(d);
       if (d.decision) setDecision({ status: d.decision.status, reason_codes: d.decision.reason_codes });
+      // The stored stage results are the truth (a PO confirmation re-runs stages 6 and 7).
+      setRows((prev) => {
+        const next = { ...prev };
+        for (const s of d.stage_results) {
+          const k = s.stage as StageKey;
+          if (next[k]) next[k] = { ...next[k], status: s.status as Status, summary: s.summary };
+        }
+        return next;
+      });
     }).catch(() => undefined);
   }, [runId]);
+
+  function onReviewed(r: ReviewResult) {
+    if (r.commit_result !== "not_applicable") {
+      setCommitMsg(r.message);
+      setRows((prev) => ({ ...prev, COMMIT: { ...prev.COMMIT, status: r.commit_result === "committed" ? "PASSED" : "FAILED",
+                                              summary: r.message } }));
+    }
+    refresh();
+  }
 
   useEffect(() => {
     ended.current = false;
@@ -145,6 +164,9 @@ export default function LiveRun({ runId, existing }: { runId: string; existing: 
           <span className={"rounded px-3 py-1 text-sm font-bold " + (DECISION_BADGE[decision.status] ?? "bg-gray-500 text-white")}>
             {decision.status}
           </span>
+          {decision.status === "APPROVE" && decision.reason_codes.length > 0 && (
+            <span className="text-sm text-gray-600">approved by reviewer override of</span>
+          )}
           {decision.reason_codes.length === 0
             ? <span className="text-sm text-gray-600">All checks passed</span>
             : decision.reason_codes.map((c) => (
@@ -152,6 +174,7 @@ export default function LiveRun({ runId, existing }: { runId: string; existing: 
           {commitMsg && <span className="text-sm text-gray-600">· {commitMsg}</span>}
         </div>
       )}
+      {detail?.decision?.status === "HOLD" && <ReviewPanel key={detail.decision.reason_codes.join()} detail={detail} onDone={onReviewed} />}
       {error && (
         <div role="alert" className="mt-4 flex items-center gap-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
           <span className="font-semibold">ERROR</span><span className="flex-1">{error}</span>

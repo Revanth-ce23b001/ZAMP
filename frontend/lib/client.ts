@@ -39,6 +39,32 @@ export async function retryRun(runId: string): Promise<{ run_id: string; status:
   return asJson(await fetch(`${BACKEND}/api/runs/${runId}/retry`, { method: "POST" }));
 }
 
+export type ReviewResult = {
+  run_id: string;
+  override_id: string;
+  action: string;
+  status: string;
+  commit_result: "committed" | "blocked" | "not_applicable";
+  message: string;
+  reason_codes: string[];
+};
+
+async function postJson<T>(url: string, body: unknown): Promise<T> {
+  return asJson(await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+                                   body: JSON.stringify(body) }));
+}
+
+export function overrideRun(runId: string, body: {
+  action: "approve" | "reject"; reviewer_name: string; reason: string; codes_overridden: string[];
+  bank_verification?: { verified_with: string; channel: string; outcome: string };
+}): Promise<ReviewResult> {
+  return postJson(`${BACKEND}/api/runs/${runId}/override`, body);
+}
+
+export function confirmPo(runId: string, body: { po_number: string; reviewer_name: string; reason: string }) {
+  return postJson<ReviewResult>(`${BACKEND}/api/runs/${runId}/confirm-po`, body);
+}
+
 export const eventsUrl = (runId: string) => `${BACKEND}/api/runs/${runId}/events`;
 export const fileUrl = (runId: string) => `${BACKEND}/api/runs/${runId}/file`;
 
@@ -71,5 +97,7 @@ export type RunDetail = {
     notes: string[];
     evidence: Evidence[];
     committed: boolean;
+    po_candidates: { po_number: string; score: number; plausible: boolean }[];
   } | null;
+  trusted_contact?: { name: string; phone: string; email: string | null };
 };

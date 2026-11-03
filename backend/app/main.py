@@ -8,7 +8,7 @@ from collections.abc import Callable, Iterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Request, UploadFile
+from fastapi import Body, Depends, FastAPI, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
@@ -19,14 +19,14 @@ from app.db.connection import connect
 from app.db.migrate import migrate
 from app.db.seed import FIXTURE_VERSION, is_seeded, seed, table_counts
 from app.policy import Policy, load_policy
-from app.services import audit
+from app.services import audit, review, views
+from app.services.review import ReviewError
 from app.services.events import queue_position, run_events
 from app.services.extraction.base import ExtractionAdapter
 from app.services.reset import ResetService
 from app.services.upload import PDF_MIME, UploadError, display_number, submit
 from app.services.worker import Worker
 from app.utils.masking import mask_account_number, masked_bank
-from app.utils.money import money
 
 PRODUCT_NAME = "ClearMatch AP"
 APP_VERSION = "0.1.0"
@@ -56,11 +56,6 @@ def get_conn(request: Request) -> Iterator[sqlite3.Connection]:
 def get_policy(request: Request) -> Policy:
     return request.app.state.policy
 
-
-def allowed_overrun(po_total: int, policy: Policy) -> int:
-    """min(pct% of PO total, cap), applied once per PO (FR-068, A-12). Integer paise, floor."""
-    tol = policy.assumption("A-12")
-    return min(po_total * tol["pct_of_po_total"] // 100, tol["cap_paise"])
 
 
 def create_app(settings: Settings | None = None,
@@ -275,36 +270,51 @@ def create_app(settings: Settings | None = None,
     def list_pos(
         conn: sqlite3.Connection = Depends(get_conn), policy: Policy = Depends(get_policy)
     ) -> list[dict]:
-        rows = conn.execute(
-            """
-            SELECT po.po_number, po.vendor_id, v.legal_name AS vendor_name, po.po_date,
-                   po.currency, po.po_total,
-                   (SELECT COUNT(*) FROM po_lines l WHERE l.po_number = po.po_number) AS line_count,
-                   (SELECT COALESCE(SUM(c.value), 0)
-                      FROM po_consumption c JOIN po_lines l ON l.po_line_id = c.po_line_id
-                     WHERE l.po_number = po.po_number) AS approved
-              FROM purchase_orders po JOIN vendors v ON v.vendor_id = po.vendor_id
-             ORDER BY po.po_number
-            """
-        ).fetchall()
-        out = []
-        for r in rows:
-            allow = allowed_overrun(r["po_total"], policy)
-            out.append({
-                "po_number": r["po_number"],
-                "vendor_id": r["vendor_id"],
-                "vendor_name": r["vendor_name"],
-                "po_date": r["po_date"],
-                "currency": r["currency"],
-                "line_count": r["line_count"],
-                "po_total": money(r["po_total"]),
-                # "approved" = consumed by committed approvals only (FR-069).
-                "approved": money(r["approved"]),
-                "remaining": money(r["po_total"] - r["approved"]),
-                "allowed_overrun": money(allow),
-                "ceiling": money(r["po_total"] + allow),
-            })
-        return out
+        return views.po_balances(conn, policy)
+
+    # ------------------------------------------------------------ review (FR-100..FR-106, FR-103)
+
+    def _review(fn, run_id: str, body: dict) -> JSONResponse:
+        conn = connect(settings.database_path)
+        try:
+            result = fn(conn, run_id, body, policy)
+        except ReviewError as exc:
+            return JSONResponse(status_code=exc.http_status, content={"error": exc.code, "message": exc.message})
+        finally:
+            conn.close()
+        return JSONResponse(result.as_dict())
+
+    @app.post("/api/runs/{run_id}/override")
+    def override_run(run_id: str, body: dict = Body(...)) -> JSONResponse:
+        """{action: approve | reject, reviewer_name, reason, codes_overridden, bank_verification?}"""
+        return _review(review.override, run_id, body)
+
+    @app.post("/api/runs/{run_id}/confirm-po")
+    def confirm_po_run(run_id: str, body: dict = Body(...)) -> JSONResponse:
+        """{po_number, reviewer_name, reason}"""
+        return _review(review.confirm_po, run_id, body)
+
+    # ------------------------------------------------------------ read models (FR-111..FR-117)
+
+    @app.get("/api/runs")
+    def list_runs(status: str | None = None, reason_code: str | None = None, po_number: str | None = None,
+                  conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:
+        return views.list_runs(conn, status, reason_code, po_number)
+
+    @app.get("/api/runs/{run_id}/audit")
+    def run_audit(run_id: str, conn: sqlite3.Connection = Depends(get_conn)) -> JSONResponse:
+        body = views.run_audit(conn, run_id)
+        if body is None:
+            return JSONResponse(status_code=404, content={"error": "run_not_found", "message": "Run not found"})
+        return JSONResponse(body)
+
+    @app.get("/api/dashboard")
+    def dashboard(conn: sqlite3.Connection = Depends(get_conn)) -> dict:
+        return views.dashboard(conn, policy)
+
+    @app.get("/api/policy")
+    def policy_endpoint() -> dict:
+        return views.policy_view(policy)
 
     @app.get("/api/vendors")
     def list_vendors(conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:

@@ -203,6 +203,58 @@ def test_same_file_lands_on_existing_run(browser):
     page.close()
 
 
+def start(browser, prefix):
+    page = browser.new_page(viewport={"width": 1400, "height": 1100})
+    page.goto(f"{WEB}/work-queue")
+    page.select_option("#sample", next((BACKEND_DIR / "samples").glob(f"{prefix}_*.pdf")).name)
+    page.get_by_role("button", name="Run").click()
+    page.wait_for_url("**/runs/*/live", timeout=20000)
+    page.get_by_test_id("review-panel").wait_for(timeout=30000)
+    return page
+
+
+def test_t03_bank_override_in_the_browser(browser):
+    """T-23 then T-22: Approve stays disabled until the outcome is 'verified'; a 'not verified'
+    attempt is recorded and the invoice stays on HOLD; a verified override commits."""
+    page = start(browser, "T03")
+    panel = page.get_by_test_id("review-panel")
+    assert "Verify with Meena Raghavan, +91 98400 11223 (vendor master)" in panel.inner_text()
+    approve = page.get_by_role("button", name="Approve (override)")
+    page.get_by_label("Reviewer name").fill("Ashrith")
+    page.get_by_label("Reason").fill("Vendor confirmed the new account by phone.")
+    page.get_by_test_id("ack-BANK_DETAILS_MISMATCH").check()
+    page.get_by_label("Verified with").fill("Meena Raghavan")
+    page.get_by_label("Channel").select_option("phone on record")
+    page.get_by_label("Outcome").select_option("not verified")
+    assert approve.is_disabled()
+    page.get_by_role("button", name="Record attempt (stays on HOLD)").click()
+    page.get_by_text("Bank verification not confirmed: invoice remains on HOLD").wait_for(timeout=10000)
+    assert page.get_by_test_id("decision-banner").inner_text().startswith("HOLD")
+
+    page.get_by_label("Outcome").select_option("verified")
+    assert approve.is_enabled()
+    approve.click()
+    page.get_by_text("Approved and committed: PO-1044 remaining balance ₹42,000").first.wait_for(timeout=10000)
+    page.locator('[data-stage="COMMIT"][data-status="PASSED"]').wait_for(timeout=10000)
+    assert page.get_by_test_id("decision-banner").inner_text().startswith("APPROVE")
+    assert page.get_by_test_id("review-panel").count() == 0          # no override controls on APPROVE (FR-106)
+    page.screenshot(path=str(SHOTS / "7_t03_override_committed.png"), full_page=True)
+    page.close()
+
+
+def test_t04_confirm_po_in_the_browser(browser):
+    page = start(browser, "T04")
+    page.get_by_label("Reviewer name").fill("Ashrith")
+    page.get_by_label("Reason").fill("Requester confirmed PO-1031 by email.")
+    page.get_by_label("PO-1031 (score 100, plausible)").check()
+    page.get_by_role("button", name="Confirm PO").click()
+    page.get_by_text("Approved and committed: PO-1031 remaining balance ₹5,35,000").first.wait_for(timeout=10000)
+    assert page.get_by_test_id("decision-banner").inner_text().startswith("APPROVE")
+    assert page.locator('[data-stage="PO_MATCH"]').get_attribute("data-status") == "PASSED"
+    page.screenshot(path=str(SHOTS / "8_t04_confirm_po.png"), full_page=True)
+    page.close()
+
+
 def test_hold_run_shows_codes_and_commit_not_applicable(browser):
     page = browser.new_page()
     page.goto(f"{WEB}/work-queue")

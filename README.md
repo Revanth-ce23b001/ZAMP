@@ -9,8 +9,10 @@ deterministic rules decide APPROVE, HOLD or REJECT; humans resolve exceptions.
 - Seed data: [`backend/seed/README_FIXTURES.md`](backend/seed/README_FIXTURES.md) (`fixtures-v1`, synthetic)
 - Wireframe (layout and navigation only; its sample data is placeholder): [`docs/wireframes/`](docs/wireframes/)
 
-**Status: Day 3B.** Live processing in the browser: Work Queue has a sample picker and a PDF drop
-zone; the live screen streams the seven stages and the commit over SSE. Day 3A summary: The full backend pipeline runs end to end: upload, sequential worker,
+**Status: Day 4.** Human review: override (approve / reject with bank verification and the commit
+recheck) and confirm-PO endpoints, a minimal review panel on the live screen for HOLD runs, and the
+remaining read endpoints (runs, audit, dashboard, policy) so Day 5 is frontend only.
+Day 3B: live processing in the browser over SSE. Day 3A summary: The full backend pipeline runs end to end: upload, sequential worker,
 Ingest, Extract (Gemini with an ordered fallback chain, cached by file hash, cache snapshot
 shipped for the samples), the pure rules engine for stages 3-7 (Validate, Vendor & Bank,
 Duplicate, PO Match, Decide) and `commit_approval`. All 15 samples produce exactly the PRD §13
@@ -133,6 +135,12 @@ per 15 min). The reset is one atomic transaction; the extraction cache and the
 | GET | `/api/runs/{run_id}` | Run, stage results, extraction (account masked), decision with evidence; trusted-contact phone/email only for `BANK_DETAILS_MISMATCH` (FR-044) |
 | GET | `/api/runs/{run_id}/events` | SSE (FR-114): `run`, `queued`, `stage_started`, `stage_completed`, `decision`, `commit`, `error`, `retry`, `end`. Replayed from stored audit events; resumes from `Last-Event-ID`; keepalive every 15 s; closes after the decision and any commit |
 | GET | `/api/runs/{run_id}/file` | The uploaded PDF (preview) |
+| POST | `/api/runs/{run_id}/override` | `{action: approve \| reject, reviewer_name, reason, codes_overridden, bank_verification?}`. HOLD only (OD-6); reason ≥ 10 chars; every HOLD code acknowledged; bank fields required for `BANK_DETAILS_MISMATCH`, approve only when `verified` (a `not verified` attempt is recorded, stays HOLD, 422). Approve goes through `commit_approval` and may be blocked |
+| POST | `/api/runs/{run_id}/confirm-po` | `{po_number, reviewer_name, reason}` for `PO_INFERRED` / `PO_NOT_FOUND` with suggestions; re-runs stages 6-7 with the confirmed PO; commits if no codes remain |
+| GET | `/api/runs` | Run list, filters `status` (APPROVE/HOLD/REJECT/ERROR/QUEUED/PROCESSING), `reason_code`, `po_number` |
+| GET | `/api/runs/{run_id}/audit` | Ordered audit events and override records |
+| GET | `/api/dashboard` | FR-111 metrics, recent runs, PO balances (remaining and allowed overrun as separate values) |
+| GET | `/api/policy` | Every policy value with meaning and [PA] label, the 17 reason codes, P1 flags, the "does not verify" list |
 | POST | `/api/demo/reset` | Header `X-Demo-Reset-Token`; body `{"confirm": "RESET", "requester_label": "..."}`. `200 {reset_id, restored}`, `400`, `401`, `429`, `500` |
 
 ## Layout

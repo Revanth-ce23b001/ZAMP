@@ -35,6 +35,8 @@ class EngineResult:
     ledger: dict | None                 # the invoice_ledger row for this run, if it can be recorded
     duplicate_of: str | None
     duplicate_matches: list[dict] = field(default_factory=list)
+    duplicate_notes: list[str] = field(default_factory=list)
+    po_notes: list[str] = field(default_factory=list)
 
 
 def evaluate(x: InvoiceExtraction, ref: ReferenceData, policy: Policy, today: date,
@@ -97,4 +99,5 @@ def evaluate(x: InvoiceExtraction, ref: ReferenceData, policy: Policy, today: da
         po_candidates=[{"po_number": c.po_number, "score": c.score, "breakdown": c.breakdown,
                         "plausible": c.plausible} for c in p.candidates],
         commit_plan=commit_plan, ledger=ledger, duplicate_of=d.duplicate_of, duplicate_matches=d.matches,
+        duplicate_notes=d.notes, po_notes=p.notes,
     )

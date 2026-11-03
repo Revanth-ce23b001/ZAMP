@@ -38,6 +38,12 @@ def commit_approval(conn: sqlite3.Connection, run_id: str, policy: Policy) -> Co
         raise
 
 
+def commit_in_transaction(conn: sqlite3.Connection, run_id: str, policy: Policy) -> CommitResult:
+    """The same commit, for a caller that already holds a BEGIN IMMEDIATE transaction (an override
+    or a PO confirmation commits atomically with its own record)."""
+    return _commit(conn, run_id, Rules(policy))
+
+
 def _commit(conn: sqlite3.Connection, run_id: str, rules: Rules) -> CommitResult:
     d = conn.execute("SELECT * FROM decisions WHERE run_id = ?", (run_id,)).fetchone()
     if d is None:
