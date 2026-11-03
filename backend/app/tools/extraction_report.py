@@ -2,7 +2,7 @@
 
     python -m app.tools.extraction_report
 
-Reads backend/seed/extraction_cache.json (DEC-013) and invoice-templates/manifest.json, and
+Reads backend/seed/extraction_cache.json (DEC-014) and invoice-templates/manifest.json, and
 prints wrong fields and fields below the critical-confidence threshold (A-17) per sample.
 No provider calls.
 """

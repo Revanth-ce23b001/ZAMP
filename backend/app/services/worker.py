@@ -172,7 +172,7 @@ class Worker:
                                **self._usage(att.usage)}
                     if not att.ok:
                         payload |= {"error_kind": att.error_kind, "error": self._redact(att.error or "")[:300]}
-                    if fell_to is not None:     # DEC-015: every fallback is audited
+                    if fell_to is not None:     # DEC-013: every fallback is audited
                         payload |= {"fallback": True, "fallback_to": str(fell_to)}
                     if not att.ok:
                         audit.add(conn, run_id, "extraction_called", payload)

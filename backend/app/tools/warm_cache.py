@@ -1,4 +1,4 @@
-"""Warm the extraction cache for the sample PDFs and export the snapshot (DEC-013).
+"""Warm the extraction cache for the sample PDFs and export the snapshot (DEC-014).
 
     python -m app.tools.warm_cache                 # extract uncached samples, then export
     python -m app.tools.warm_cache --only T15,T04 --force   # re-extract specific files

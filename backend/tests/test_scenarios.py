@@ -1,6 +1,6 @@
 """PRD §13 scenario tests: every sample through the full pipeline (upload path, worker, stages
 1-7, commit) in the PRD's run order, after a reset, against the shipped extraction cache
-(DEC-013). The adapter raises if called, so these cost no provider calls.
+(DEC-014). The adapter raises if called, so these cost no provider calls.
 
 Each run must produce exactly the status and reason codes §13 specifies: no more, no fewer.
 """

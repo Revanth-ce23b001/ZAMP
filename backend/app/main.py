@@ -38,7 +38,7 @@ def _init_database(settings: Settings) -> None:
         migrate(conn)
         if not is_seeded(conn):
             seed(conn)
-        load_snapshot_if_empty(conn, settings.cache_snapshot)   # DEC-013
+        load_snapshot_if_empty(conn, settings.cache_snapshot)   # DEC-014
     finally:
         conn.close()
 
@@ -64,7 +64,7 @@ def allowed_overrun(po_total: int, policy: Policy) -> int:
 def create_app(settings: Settings | None = None,
                adapter_for: Callable[[ChainEntry], ExtractionAdapter] | None = None) -> FastAPI:
     # Raises ConfigError (and so refuses to start) when DEMO_RESET_TOKEN is missing or an
-    # extraction chain is empty or lacks credentials (DEC-015).
+    # extraction chain is empty or lacks credentials (DEC-013).
     settings = settings or load_settings(require_reset_token=True)
     if not settings.demo_reset_token:
         raise ConfigError("DEMO_RESET_TOKEN is required")

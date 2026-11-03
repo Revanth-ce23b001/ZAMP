@@ -37,7 +37,7 @@ TEST_CHAIN = (ChainEntry("gemini", "test-model"),)
 
 @pytest.fixture
 def settings(tmp_path) -> Settings:
-    # A configured chain is required at startup (DEC-015); tests inject fake adapters.
+    # A configured chain is required at startup (DEC-013); tests inject fake adapters.
     # cache_snapshot=None keeps the shipped cache out of tests that count provider calls.
     return Settings(
         database_path=tmp_path / "test.db",

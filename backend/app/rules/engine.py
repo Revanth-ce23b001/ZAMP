@@ -58,7 +58,7 @@ def evaluate(x: InvoiceExtraction, ref: ReferenceData, policy: Policy, today: da
     except ValueError:
         inv_date = None
 
-    # DEC-014: signature keys canonicalised through the invoice's own (explicit/confirmed) PO.
+    # DEC-015: signature keys canonicalised through the invoice's own (explicit/confirmed) PO.
     po_for_sig = resolve_po(confirmed_po or x.po_reference.value, ref.pos)
     if po_for_sig is not None and (vendor is None or po_for_sig.vendor_id != vendor.vendor_id):
         po_for_sig = None

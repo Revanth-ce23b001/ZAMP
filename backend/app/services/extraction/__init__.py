@@ -1,4 +1,4 @@
-"""Extraction service: adapters built per chain entry from configuration (FR-015, DEC-015)."""
+"""Extraction service: adapters built per chain entry from configuration (FR-015, DEC-013)."""
 from collections.abc import Callable
 
 from app.config import ChainEntry, Settings

@@ -1,4 +1,4 @@
-"""Provider fallback chain (DEC-015) and cache snapshot (DEC-013)."""
+"""Provider fallback chain (DEC-013) and cache snapshot (DEC-014)."""
 import dataclasses
 import json
 
@@ -177,7 +177,7 @@ def test_worker_chain_exhausted_is_error_with_retry(settings):
         assert rows(c, "SELECT model FROM extractions WHERE run_id = ?", r["run_id"]) == [{"model": "model-b"}]
 
 
-# ---------- cache snapshot (DEC-013) ----------
+# ---------- cache snapshot (DEC-014) ----------
 
 def test_snapshot_loads_into_empty_cache_only(settings, tmp_path):
     from app.db.cache_snapshot import load_snapshot_if_empty

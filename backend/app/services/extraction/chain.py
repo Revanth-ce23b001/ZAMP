@@ -1,4 +1,4 @@
-"""Ordered provider fallback chain (FR-015 extended; DECISIONS DEC-015).
+"""Ordered provider fallback chain (FR-015 extended; DECISIONS DEC-013).
 
 Each entry is tried with its own adapter (which keeps today's one-retry behaviour). If an entry
 finally fails for an AVAILABILITY reason (429, 5xx, timeout, connection), the next entry is

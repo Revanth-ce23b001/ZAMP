@@ -1,4 +1,4 @@
-"""Stage 5 Duplicate (FR-050..FR-055, §9.5, §9.6, OD-3, DEC-014). Pure.
+"""Stage 5 Duplicate (FR-050..FR-055, §9.5, §9.6, OD-3, DEC-015). Pure.
 
 Tiers per ledger entry, evaluated in order, first match per entry wins:
   1 confirmed  same vendor + same normalised number -> CONFIRMED_DUPLICATE if the original is

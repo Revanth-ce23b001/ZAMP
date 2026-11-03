@@ -20,7 +20,7 @@ KNOWN_PROVIDERS = ("gemini", "anthropic")
 
 @dataclass(frozen=True)
 class ChainEntry:
-    """One provider + model in an extraction fallback chain (DEC-015)."""
+    """One provider + model in an extraction fallback chain (DEC-013)."""
     provider: str
     model: str
 
@@ -56,10 +56,10 @@ class Settings:
     samples_dir: Path = BACKEND_DIR / "samples"
     # FR-014 cache. EXTRACTION_CACHE=off disables both reads and writes (determinism testing).
     extraction_cache_enabled: bool = True
-    # Ordered fallback chains (DEC-015). Default: the single LLM_PROVIDER:LLM_MODEL entry.
+    # Ordered fallback chains (DEC-013). Default: the single LLM_PROVIDER:LLM_MODEL entry.
     text_chain: tuple[ChainEntry, ...] = ()
     vision_chain: tuple[ChainEntry, ...] = ()
-    # Shipped cache snapshot loaded when extraction_cache is empty (DEC-013). None disables.
+    # Shipped cache snapshot loaded when extraction_cache is empty (DEC-014). None disables.
     cache_snapshot: Path | None = BACKEND_DIR / "seed" / "extraction_cache.json"
 
     def secrets(self) -> list[str]:

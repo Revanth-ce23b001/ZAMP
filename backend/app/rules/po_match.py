@@ -1,4 +1,4 @@
-"""Stage 6 PO Match (FR-060..FR-069, §9.3, §9.7, OD-1, OD-2, DEC-003, DEC-014). Pure.
+"""Stage 6 PO Match (FR-060..FR-069, §9.3, §9.7, OD-1, OD-2, DEC-003, DEC-015). Pure.
 
 Explicit PO lookup or deterministic candidate inference (60/30/10), line pairing by item code
 then normalised description/alias, unmatched lines, unit-price tolerance, cumulative quantity
@@ -48,7 +48,7 @@ def pair_lines(lines: list[LineItem], po: PO) -> tuple[list[Pair], list[tuple[in
 
 
 def line_signature(lines: list[LineItem], po: PO | None) -> tuple[tuple[str, float], ...]:
-    """DEC-014: paired PO line's item code, else printed item code, else normalised description."""
+    """DEC-015: paired PO line's item code, else printed item code, else normalised description."""
     canonical = {}
     if po is not None:
         for p in pair_lines(lines, po)[0]:
