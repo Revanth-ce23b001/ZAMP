@@ -220,7 +220,7 @@ export type Dashboard = {
   avg_processing_ms: number | null;
   recent_runs: RunRow[];
   po_balances: PoBalance[];
-  value_flagged_for_review: FlaggedValue;
+  value_flagged_for_review?: FlaggedValue;        // absent on a backend older than Day 8
 };
 
 // DEC-019 (proposed, pending review): largest single discrepancy per decided invoice, in paise.

@@ -101,7 +101,7 @@ export default function ReportsPage() {
         {(d.by_status.ERROR ?? 0) > 0 && <> ({d.by_status.ERROR} in error)</>}.
       </p>
 
-      <FlaggedTile v={d.value_flagged_for_review} />
+      {d.value_flagged_for_review && <FlaggedTile v={d.value_flagged_for_review} />}
 
       <h2 className="section-title mt-8">Exceptions by reason</h2>
       <div className="card mt-3" data-testid="exceptions">
