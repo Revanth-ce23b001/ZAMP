@@ -6,7 +6,7 @@
 import { Fragment, useEffect, useState } from "react";
 
 import { CodeChip } from "@/components/ui";
-import { getAccuracy, type Accuracy, type ApiError } from "@/lib/client";
+import { getAccuracy, type Accuracy, type AccuracyField, type ApiError } from "@/lib/client";
 import { rupees } from "@/lib/format";
 
 const LABEL: Record<string, string> = {
@@ -24,6 +24,18 @@ function value(field: string, v: unknown): string {
 
 const pct = (a: number, b: number) => (b ? `${((a * 100) / b).toFixed(1)}%` : "—");
 
+// Fields that failed first; ties keep the measurement's field order (Array.sort is stable).
+const byMisses = (rows: AccuracyField[]) => [...rows].sort((x, y) => y.misses.length - x.misses.length);
+
+// The lead sentence, built from the measurement so it stays true if the measurement changes.
+function leadStatement(a: Accuracy): string {
+  const worst = byMisses(a.field_accuracy)[0];
+  const d = a.decision_accuracy;
+  const decisions = `${d.correct} of ${d.total} decisions were correct.`;
+  if (!worst || worst.misses.length === 0) return `Every checked field was extracted correctly. ${decisions}`;
+  return `${LABEL[worst.field] ?? worst.field} was extracted incorrectly on ${worst.misses.length} of ${worst.total} invoices. ${decisions}`;
+}
+
 export default function AccuracyPage() {
   const [a, setA] = useState<Accuracy | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,10 +46,13 @@ export default function AccuracyPage() {
   return (
     <section className="max-w-5xl">
       <h1 className="page-title">Measured accuracy</h1>
-      <p className="mt-3 text-[15px] text-ink-2">
-        Per-field extraction accuracy and decision accuracy are different measurements. The model that reads the
-        invoice gets some fields wrong; the deterministic rules that decide are built so those errors are either
-        caught or do not change the outcome. The gap between the two numbers below is the point of the architecture.
+      {a && (
+        <p className="mt-3 text-[18px] font-medium leading-snug text-ink" data-testid="acc-lead">{leadStatement(a)}</p>
+      )}
+      <p className="mt-2 text-[15px] text-ink-2">
+        The deterministic layer does not trust extraction on its own, so a field-level miss does not become a
+        decision-level error. Per-field extraction accuracy and decision accuracy are different measurements; the
+        gap between them is the point of the architecture.
       </p>
 
       {error && <div role="alert" className="notice notice-bad mt-6">{error}</div>}
@@ -45,40 +60,19 @@ export default function AccuracyPage() {
 
       {a && (
         <>
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <div className="card">
-              <div className="micro">Field-level extraction</div>
-              <div className="mt-2 text-[27px] font-semibold leading-none tabular-nums" data-testid="acc-fields-headline">
-                {a.field_totals.correct}/{a.field_totals.total}
-              </div>
-              <div className="mt-1 text-[13px] text-ink-3 tabular-nums">{pct(a.field_totals.correct, a.field_totals.total)} of checked fields exact</div>
-            </div>
-            <div className="card">
-              <div className="micro">Decisions</div>
-              <div className="mt-2 text-[27px] font-semibold leading-none tabular-nums" data-testid="acc-decisions-headline">
-                {a.decision_accuracy.correct}/{a.decision_accuracy.total}
-              </div>
-              <div className="mt-1 text-[13px] text-ink-3 tabular-nums">{pct(a.decision_accuracy.correct, a.decision_accuracy.total)} status and reason codes exact</div>
-            </div>
-            <div className="card">
-              <div className="micro">Unresolved ground truth</div>
-              <div className="mt-2 text-[27px] font-semibold leading-none tabular-nums">{a.field_totals.unresolved}</div>
-              <div className="mt-1 text-[13px] text-ink-3">field values the PDFs do not establish; excluded from both counts</div>
-            </div>
-          </div>
-
           <h2 className="section-title mt-10">Extraction, per field</h2>
           <p className="mt-1 text-[13px] text-ink-3">{a._meta.match_rule}.</p>
           <div className="card-flush mt-3 overflow-x-auto">
             <table className="tbl" data-testid="accuracy-fields">
-              <thead><tr><th>Field</th><th className="num">Correct / total</th><th className="num">Accuracy</th><th className="num">Unresolved</th><th>Misses: sample, expected, returned</th></tr></thead>
+              <thead><tr><th>Field</th><th className="num">Misses</th><th className="num">Correct / total</th><th className="num">Accuracy</th><th className="num">Not stated in document</th><th>Misses: sample, expected, returned</th></tr></thead>
               <tbody>
-                {a.field_accuracy.map((f) => (
+                {byMisses(a.field_accuracy).map((f) => (
                   <tr key={f.field} data-testid="accuracy-field" data-field={f.field}>
-                    <td className="font-medium">{LABEL[f.field] ?? f.field}</td>
+                    <td className="whitespace-nowrap font-medium">{LABEL[f.field] ?? f.field}</td>
+                    <td className={"num " + (f.misses.length ? "font-semibold text-bad" : "text-ink-3")}>{f.misses.length}</td>
                     <td className="num">{f.correct}/{f.total}</td>
                     <td className="num">{pct(f.correct, f.total)}</td>
-                    <td className="num">{f.unresolved > 0 ? <span title={f.unresolved_samples.map((u) => u.test_id).join(", ")}>{f.unresolved} unresolved</span> : "0"}</td>
+                    <td className="num">{f.unresolved > 0 ? <span title={f.unresolved_samples.map((u) => u.test_id).join(", ")}>{f.unresolved}</span> : "0"}</td>
                     <td>
                       {f.misses.length === 0 ? <span className="text-ink-3">none</span> : (
                         <ul className="space-y-1">
@@ -86,6 +80,12 @@ export default function AccuracyPage() {
                             <li key={x.test_id} className="text-[13px]">
                               <span className="font-mono text-ink-2">{x.test_id}</span>: expected <span className="font-mono">{value(f.field, x.expected)}</span>,
                               {" "}returned <span className="font-mono text-bad">{value(f.field, x.returned)}</span>
+                              {f.field === "subtotal_paise" && (
+                                <span className="mt-0.5 block text-ink-3" data-testid="graceful-degradation">
+                                  <span className="status s-nc mr-1"><span className="dot" aria-hidden />Graceful degradation</span>
+                                  amounts() used the sum of line amounts in place of the missing subtotal, and E1 was marked Not Checked.
+                                </span>
+                              )}
                             </li>))}
                         </ul>
                       )}
@@ -98,21 +98,27 @@ export default function AccuracyPage() {
 
           {a.field_accuracy.some((f) => f.unresolved > 0) && (
             <div className="card mt-4" data-testid="accuracy-unresolved">
-              <h3 className="card-title">Unresolved fields (shown, not hidden)</h3>
+              <h3 className="card-title">Not stated in document</h3>
+              <p className="mt-1 text-[13px] text-ink-3">
+                These fields are excluded from scoring because the PDF does not print them, so there is nothing to check the
+                model against. It is also why the UNSUPPORTED_DOCUMENT rule stays disabled: it is a P1 rule, off by design
+                (OD-7), and on documents that print no &ldquo;Tax Invoice&rdquo; title it would hold invoices for something the PDF never says.
+              </p>
               <ul className="mt-2 space-y-1 text-[13px] text-ink-2">
                 {a.field_accuracy.filter((f) => f.unresolved > 0).map((f) => {
                   const reasons = [...new Set(f.unresolved_samples.map((u) => u.reason))];
                   return (
                     <li key={f.field}>
                       <span className="font-medium text-ink">{LABEL[f.field] ?? f.field}</span>, {f.unresolved} sample{f.unresolved === 1 ? "" : "s"}
-                      {" "}({f.unresolved_samples.map((u) => u.test_id).join(", ")}): {reasons.join(" / ")}
+                      {" "}({f.unresolved_samples.map((u) => u.test_id).join(", ")}): {reasons.map((r) => (r ?? "").replace(/^unresolved: /, "")).join(" / ")}
                     </li>);
                 })}
               </ul>
             </div>
           )}
 
-          <h2 className="section-title mt-10">Decisions, expected vs actual</h2>
+          <h2 className="section-title mt-10">Decisions, expected vs actual:{" "}
+            <span className="tabular-nums" data-testid="acc-decisions-headline">{a.decision_accuracy.correct}/{a.decision_accuracy.total}</span> correct</h2>
           <p className="mt-1 text-[13px] text-ink-3">
             Correct only if the status and the full set of reason codes match. Expected: {a.decision_accuracy.source}.
             Actual: every sample run through the real pipeline from the cached extractions, on a fresh seeded database.
@@ -171,6 +177,8 @@ export default function AccuracyPage() {
             {" "}Configured chain: {a.models.configured_chain.text.join(" → ")}.
             {" "}Policy <span className="font-mono">{a._meta.policy_version.slice(0, 12)}</span>.
             {" "}Measured {a._meta.measured_at.slice(0, 10)}, {a._meta.sample_size} samples, {a._meta.model_calls_made} model calls.
+            {" "}All checked fields: <span data-testid="acc-fields-headline">{a.field_totals.correct}/{a.field_totals.total}</span>
+            {" "}exact ({pct(a.field_totals.correct, a.field_totals.total)}), {a.field_totals.unresolved} not stated in document.
             {" "}{a._meta.dataset[0].toUpperCase() + a._meta.dataset.slice(1)}.
           </p>
         </>

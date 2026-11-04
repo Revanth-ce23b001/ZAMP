@@ -179,3 +179,13 @@ def test_readme_headline_matches_the_committed_measurement():
     assert f"**{t['correct']} of {t['total']}** checked fields exact" in readme
     assert f"**{d['correct']} of {d['total']}** correct" in readme
     assert f"{t['unresolved']} fields the PDFs do not establish" in readme
+
+
+def test_readme_leads_with_the_per_field_miss():
+    readme = (BACKEND_DIR.parent / "README.md").read_text(encoding="utf-8")
+    worst = sorted(COMMITTED["field_accuracy"], key=lambda f: -len(f["misses"]))[0]
+    d = COMMITTED["decision_accuracy"]
+    lead = (f"was extracted incorrectly on {len(worst['misses'])} of {worst['total']} invoices. "
+            f"{d['correct']} of {d['total']} decisions were correct.")
+    assert lead in readme
+    assert readme.index(lead) < readme.index("checked fields exact")          # the miss comes before the aggregate

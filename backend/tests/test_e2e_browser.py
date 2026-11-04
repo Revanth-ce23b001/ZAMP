@@ -616,3 +616,39 @@ def test_accuracy_page_renders_both_tables_and_footer(browser):
         assert page.get_by_test_id("accuracy-unresolved").is_visible()          # unresolved shown, not hidden
     page.screenshot(path=str(SHOTS / "20_accuracy.png"), full_page=True)
     page.close()
+
+
+LABELS = {"vendor_gstin": "Vendor GSTIN", "subtotal_paise": "Subtotal"}
+
+
+def test_accuracy_lead_statement_is_derived_from_the_measurement(browser):
+    """Day 8B: the lead names the field with the most misses and the decision count, both read from
+    /api/accuracy. Proven by serving an altered measurement and watching the sentence follow it."""
+    body = httpx.get(f"{API}/api/accuracy").json()
+    worst = sorted(body["field_accuracy"], key=lambda f: -len(f["misses"]))[0]
+    d = body["decision_accuracy"]
+    page = browser.new_page(viewport={"width": 1400, "height": 1000})
+    page.goto(f"{WEB}/accuracy")
+    page.get_by_test_id("acc-lead").wait_for(timeout=20000)
+    assert page.get_by_test_id("acc-lead").inner_text() == (
+        f"{LABELS[worst['field']]} was extracted incorrectly on {len(worst['misses'])} of {worst['total']} invoices. "
+        f"{d['correct']} of {d['total']} decisions were correct.")
+    # The failing fields come first.
+    rows = page.get_by_test_id("accuracy-field")
+    misses = [int(rows.nth(i).locator("td").nth(1).inner_text()) for i in range(rows.count())]
+    assert misses == sorted(misses, reverse=True) and rows.first.get_attribute("data-field") == worst["field"]
+    page.close()
+
+    altered = json.loads(json.dumps(body))
+    sub = next(f for f in altered["field_accuracy"] if f["field"] == "subtotal_paise")
+    sub["misses"] = sub["misses"] * 9                                     # now the field with the most misses
+    altered["decision_accuracy"]["correct"] = d["total"] - 1
+    page = browser.new_page(viewport={"width": 1400, "height": 1000})
+    page.route(f"{API}/api/accuracy", lambda route: route.fulfill(status=200, content_type="application/json",
+                                                                  body=json.dumps(altered)))
+    page.goto(f"{WEB}/accuracy")
+    page.get_by_test_id("acc-lead").wait_for(timeout=20000)
+    assert page.get_by_test_id("acc-lead").inner_text() == (
+        f"Subtotal was extracted incorrectly on 9 of {sub['total']} invoices. "
+        f"{d['total'] - 1} of {d['total']} decisions were correct.")
+    page.close()

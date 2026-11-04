@@ -109,3 +109,7 @@ entries below are proposed by implementation and pending review (DEC-018, DEC-01
 | An overridden invoice still contributes; empty state with no decided runs | Met | `test_pipeline_breakdown_and_overridden_invoice_still_counts`, `test_zero_decided_runs_is_an_empty_state`, `test_values_are_integer_paise_with_a_display_string` |
 
 Suite after Day 8: 465 backend tests passed (18 opt-in skips), 16 fixture tests, 14 browser end-to-end tests.
+
+### Day 8B (presentation only)
+
+The measured values are unchanged (`backend/seed/extraction_accuracy.json` is byte-identical). `/accuracy` now leads with the field that has the most misses, read from the measurement (`test_accuracy_lead_statement_is_derived_from_the_measurement`). The value tile is split into "Discrepancy value flagged" and "Invoice value held for review", with no combined total (`test_codes_belong_to_exactly_one_bucket`, `test_one_invoice_can_contribute_to_both_buckets`, `test_an_invoice_can_contribute_to_only_one_bucket`, `test_max_not_sum_applies_within_each_bucket`, `test_endpoint_returns_no_combined_total`). Copy rules are enforced by `tests/test_wording.py`. README: `test_readme_leads_with_the_per_field_miss`.

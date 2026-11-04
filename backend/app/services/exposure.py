@@ -7,10 +7,16 @@ Per decided run, the rupee value of the discrepancies the rules surfaced, in int
   ARITHMETIC_MISMATCH    |printed total - computed total| (the E4 equation)
   CONFIRMED_DUPLICATE, VENDOR_BLOCKED, BANK_DETAILS_MISMATCH    the full invoice total
   every other code       zero
-One invoice can raise several of these for the same underlying problem, so its exposure is the
-LARGEST single contribution, never the sum. Codes count as flagged at decision time: a code a
-reviewer later overrode still contributes, because the override resolved it rather than proving it
-absent. Read-only: computed from stored decisions, extractions, ledger and override records.
+Day 8B: the codes fall into two buckets that are reported separately and never combined:
+  discrepancy  (measured discrepancy)   PO_BALANCE_EXCEEDED, QUANTITY_EXCEEDS_PO, UNIT_PRICE_VARIANCE,
+                                        ARITHMETIC_MISMATCH: the error the rules computed
+  held         (invoice value at risk)  CONFIRMED_DUPLICATE, VENDOR_BLOCKED, BANK_DETAILS_MISMATCH:
+                                        the full value of an invoice stopped before payment
+Within each bucket an invoice counts once, at its LARGEST single contribution, never the sum, because
+several codes can describe one problem. An invoice can appear in both buckets. Codes count as flagged
+at decision time: a code a reviewer later overrode still contributes, because the override resolved
+it rather than proving it absent. Read-only: computed from stored decisions, extractions, ledger and
+override records.
 """
 import json
 import sqlite3
@@ -22,10 +28,13 @@ from app.services.upload import display_number
 from app.utils.money import money
 
 FULL_TOTAL = ("CONFIRMED_DUPLICATE", "VENDOR_BLOCKED", "BANK_DETAILS_MISMATCH")
+DISCREPANCY = ("PO_BALANCE_EXCEEDED", "QUANTITY_EXCEEDS_PO", "UNIT_PRICE_VARIANCE", "ARITHMETIC_MISMATCH")
+BUCKETS = {"discrepancy": DISCREPANCY, "held": FULL_TOTAL}
 # Tie-break when two codes contribute the same amount (deterministic, most severe first).
 ORDER = ("CONFIRMED_DUPLICATE", "VENDOR_BLOCKED", "BANK_DETAILS_MISMATCH", "PO_BALANCE_EXCEEDED",
          "QUANTITY_EXCEEDS_PO", "UNIT_PRICE_VARIANCE", "ARITHMETIC_MISMATCH")
-RULE = "Largest single discrepancy per invoice, never the sum, because several codes can describe one problem."
+RULE = ("Largest single contribution per invoice within each figure, never the sum, because several codes can "
+        "describe one problem. An invoice can count in both figures; the two are never added together.")
 OVERRIDE_NOTE = ("Counted as flagged at decision time, including codes a reviewer later overrode: an override "
                  "resolves a discrepancy, it does not mean it was never there.")
 
@@ -98,6 +107,11 @@ def driving(contrib: dict[str, int]) -> tuple[str | None, int]:
     return (best[0], best[1]) if best else (None, 0)
 
 
+def by_bucket(contrib: dict[str, int]) -> dict[str, tuple[str | None, int]]:
+    """Max-not-sum applied independently inside each bucket."""
+    return {name: driving({c: v for c, v in contrib.items() if c in codes}) for name, codes in BUCKETS.items()}
+
+
 def flagged_value(conn: sqlite3.Connection) -> dict:
     rows = conn.execute(
         """
@@ -120,19 +134,26 @@ def flagged_value(conn: sqlite3.Connection) -> dict:
         x = InvoiceExtraction.model_validate(payload) if payload else None
         total = r["ledger_total"] if r["ledger_total"] is not None else (paise(x.total.value) if x else None)
         contrib = contributions(codes, json.loads(r["po_detail"]) if r["po_detail"] else None, x, total)
-        code, amount = driving(contrib)
-        if amount > 0:
-            breakdown.append({
-                "run_id": r["run_id"], "run_display": display_number(r["run_number"]),
-                "invoice_number": r["invoice_number_raw"] or (x.invoice_number.value if x else None),
-                "driving_code": code, "amount": money(amount),
-                "contributions": {k: v for k, v in contrib.items() if v > 0},
-            })
-    breakdown.sort(key=lambda b: (-b["amount"]["paise"], b["run_display"]))
+        for bucket, (code, amount) in by_bucket(contrib).items():
+            if amount > 0:
+                breakdown.append({
+                    "run_id": r["run_id"], "run_display": display_number(r["run_number"]),
+                    "invoice_number": r["invoice_number_raw"] or (x.invoice_number.value if x else None),
+                    "bucket": bucket, "driving_code": code, "amount": money(amount),
+                    "contributions": {k: v for k, v in contrib.items() if v > 0 and k in BUCKETS[bucket]},
+                })
+    breakdown.sort(key=lambda b: (b["bucket"] != "discrepancy", -b["amount"]["paise"], b["run_display"]))
+
+    def figure(bucket: str) -> dict:
+        rows_ = [b for b in breakdown if b["bucket"] == bucket]
+        return {"total": money(sum(b["amount"]["paise"] for b in rows_)), "invoices": len(rows_),
+                "codes": list(BUCKETS[bucket])}
+
+    # Deliberately no combined total: the two figures measure different things (DEC-019).
     return {
         "decided_runs": len(rows),
-        "total": money(sum(b["amount"]["paise"] for b in breakdown)),
-        "invoices_flagged": len(breakdown),
+        "discrepancy": figure("discrepancy"),
+        "held": figure("held"),
         "breakdown": breakdown,
         "rule": RULE,
         "override_note": OVERRIDE_NOTE,

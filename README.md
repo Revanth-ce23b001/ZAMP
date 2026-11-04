@@ -3,6 +3,8 @@
 Prototype for the Zamp PS-1 invoice-processing case study. An LLM reads an invoice PDF;
 deterministic rules decide APPROVE, HOLD or REJECT; humans resolve exceptions.
 
+**Vendor GSTIN was extracted incorrectly on 6 of 16 invoices. 16 of 16 decisions were correct.** The deterministic layer does not trust extraction on its own, so a field-level miss does not become a decision-level error.
+
 **The architecture in three sentences.** The model only transcribes each invoice into a fixed schema; it has no
 field through which to approve, hold or reject. Deterministic, versioned rules decide from that transcription plus the
 vendor master and purchase orders, so a field the model gets wrong is either caught by a rule or does not change the

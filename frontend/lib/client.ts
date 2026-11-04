@@ -223,13 +223,15 @@ export type Dashboard = {
   value_flagged_for_review?: FlaggedValue;        // absent on a backend older than Day 8
 };
 
-// DEC-019 (proposed, pending review): largest single discrepancy per decided invoice, in paise.
+// DEC-019 (proposed, pending review). Two figures, never combined: the largest single measured
+// discrepancy per invoice, and the full value of invoices held. Amounts are integer paise.
+export type FlaggedFigure = { total: Money; invoices: number; codes: string[] };
 export type FlaggedValue = {
   decided_runs: number;
-  total: Money;
-  invoices_flagged: number;
-  breakdown: { run_id: string; run_display: string; invoice_number: string | null; driving_code: string;
-               amount: Money; contributions: Record<string, number> }[];
+  discrepancy: FlaggedFigure;
+  held: FlaggedFigure;
+  breakdown: { run_id: string; run_display: string; invoice_number: string | null; bucket: "discrepancy" | "held";
+               driving_code: string; amount: Money; contributions: Record<string, number> }[];
   rule: string;
   override_note: string;
 };

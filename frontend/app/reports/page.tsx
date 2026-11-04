@@ -14,39 +14,51 @@ const SEVERITY_BAR: Record<string, string> = { REJECT: "bg-bad-dot", HOLD: "bg-h
 
 const TILE_DOT: Record<string, string> = { "m-approved": "s-ok", "m-hold": "s-hold", "m-rejected": "s-bad" };
 
-// Value flagged for review (DEC-019, proposed by implementation, pending review). Every figure comes
-// from the backend in integer paise with a display string; nothing is computed here.
+// Value flagged for review (DEC-019, proposed by implementation, pending review). Two figures that are
+// never added together; every amount comes from the backend in integer paise with a display string.
+const BUCKET_LABEL: Record<string, string> = {
+  discrepancy: "Discrepancy value flagged", held: "Invoice value held for review",
+};
+const BUCKET_SHORT: Record<string, string> = { discrepancy: "Measured discrepancy", held: "Invoice value at risk" };
+
 function FlaggedTile({ v }: { v: FlaggedValue }) {
+  const empty = v.decided_runs === 0;
   return (
     <div className="card mt-4" data-testid="flagged-value">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="micro">Value flagged for review</div>
-          <div className="mt-2 text-[27px] font-semibold leading-none tracking-tight tabular-nums" data-testid="flagged-total">
-            {v.decided_runs === 0 ? <span className="text-[15px] font-medium text-ink-3">No decided runs yet</span> : v.total.display}
+      <div className="grid gap-6 md:grid-cols-2">
+        {(["discrepancy", "held"] as const).map((k) => (
+          <div key={k} data-testid={`flagged-${k}`}>
+            <div className="micro">{BUCKET_LABEL[k]}</div>
+            <div className="mt-2 text-[27px] font-semibold leading-none tracking-tight tabular-nums" data-testid={`flagged-${k}-total`}>
+              {empty ? <span className="text-[15px] font-medium text-ink-3">No decided runs yet</span> : v[k].total.display}
+            </div>
+            {!empty && (
+              <div className="mt-1 text-[13px] text-ink-3 tabular-nums">
+                {v[k].invoices} of {v.decided_runs} decided invoice{v.decided_runs === 1 ? "" : "s"} ·
+                {" "}{v[k].codes.map((c) => c.toLowerCase().replace(/_/g, " ").replace(/po/g, "PO")).join(", ")}
+              </div>
+            )}
           </div>
-        </div>
-        {v.decided_runs > 0 && (
-          <div className="text-right text-[13px] text-ink-3 tabular-nums">
-            {v.invoices_flagged} of {v.decided_runs} decided invoice{v.decided_runs === 1 ? "" : "s"} with a valued discrepancy
-          </div>
-        )}
+        ))}
       </div>
-      <p className="mt-3 text-[13px] text-ink-3" data-testid="flagged-footnote">
-        The value of discrepancies the rules surfaced for a person to resolve. It is not a financial gain or a recorded
-        outcome. {v.rule} {v.override_note} Synthetic demo dataset.
+      <p className="mt-4 text-[13px] text-ink-3" data-testid="flagged-footnote">
+        These figures are the value of discrepancies surfaced for a human to resolve, not money saved. The first is the
+        error the system computed; the second is the full value of invoices stopped before payment. Largest single
+        discrepancy per invoice per figure, on a synthetic demo dataset. An invoice can count in both figures, so they
+        are shown separately and never added together. {v.override_note}
       </p>
       {v.breakdown.length > 0 && (
         <details className="mt-3" data-testid="flagged-breakdown">
-          <summary className="cursor-pointer text-sm font-medium text-ink">Breakdown by invoice ({v.breakdown.length})</summary>
+          <summary className="cursor-pointer text-sm font-medium text-ink">Breakdown by invoice ({v.breakdown.length} rows)</summary>
           <div className="card-flush mt-3 overflow-x-auto">
             <table className="tbl">
-              <thead><tr><th>Run</th><th>Invoice no.</th><th>Driving code</th><th className="num">Amount</th></tr></thead>
+              <thead><tr><th>Run</th><th>Invoice no.</th><th>Figure</th><th>Driving code</th><th className="num">Amount</th></tr></thead>
               <tbody>
                 {v.breakdown.map((b) => (
-                  <tr key={b.run_id} data-testid="flagged-row" data-code={b.driving_code}>
+                  <tr key={b.run_id + b.bucket} data-testid="flagged-row" data-code={b.driving_code} data-bucket={b.bucket}>
                     <td className="font-mono text-ink-2"><Link href={`/runs/${b.run_id}`} className="underline">{b.run_display}</Link></td>
                     <td>{b.invoice_number ?? "—"}</td>
+                    <td>{BUCKET_SHORT[b.bucket]}</td>
                     <td><CodeChip code={b.driving_code} /></td>
                     <td className="num font-medium">{b.amount.display}</td>
                   </tr>))}
