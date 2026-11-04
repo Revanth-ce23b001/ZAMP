@@ -19,10 +19,10 @@ The GitHub keep-warm job pings every 10 minutes when GitHub runs it. Its schedul
 
 **10 minutes before**
 1. Open the health URL above and wait for `{"status":"ok"}`. If it was asleep, this takes up to about 45 s.
-2. Open the live app. Click **Reset demo data**, type `RESET`, confirm.
-3. Open **Work Queue**: the KPIs read 0 and the queue says "No invoices processed yet".
-4. Optional check: run T-01 from **Run sample**, then reset again. Wait 30 s between resets; that is the rate limit.
-5. Keep the tab open, and click something at least every 10 minutes until you start. Each request resets the sleep timer.
+2. Warm every route. Open the live app and visit each screen once: **Work Queue**, **Reports**, **POs**, **Vendors**, **Policy**, then one decision page (run T-01 from **Run sample** and click **View decision**). In five deployed walks, 2 of about 80 page loads took over 20 s, which the backend timings do not explain. The likely cause is a cold front-end route or platform start, so no screen should be loading for the first time once the interview starts.
+3. Click **Reset demo data**, type `RESET`, confirm. This clears the T-01 run from step 2.
+4. Open **Work Queue**: the KPIs read 0 and the queue says "No invoices processed yet".
+5. Keep the tab open, and click something at least every 10 minutes until you start. Each request resets the sleep timer. If you reset again, wait 30 s between resets; that is the rate limit.
 
 ## 2. Five-minute video (PRD §17.1)
 
@@ -66,7 +66,8 @@ one step undone; no decision differed.
 
 **If the interviewer uploads their own invoice:** it is extracted live. Say: "This one isn't cached,
 so it's a live call to Gemini on the free tier. It can take up to about 45 seconds." Measured on
-Render: 41 s on gemini-3.6-flash, 10 s on gemini-3.5-flash-lite. If the primary model is rate-limited
+Render: about 15 to 45 seconds on gemini-3.6-flash, depending on how quickly the model responds;
+10 s on gemini-3.5-flash-lite. If the primary model is rate-limited
 or down, the chain falls through to flash-lite automatically, and the audit tab shows it. If both
 fail, the run shows ERROR with a **Retry** button. Nothing is decided by the model either way.
 

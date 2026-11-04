@@ -35,7 +35,8 @@ mid-interview contingency: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md).
 **Live extraction is free-tier only (DEC-017).** Uncached PDFs go to `gemini-3.6-flash` (20 requests
 a day), falling back to `gemini-3.5-flash-lite` (500 a day) on 429, 5xx, timeout or connection
 errors. Render uses a Gemini key from a Google project nothing else uses. Measured on Render:
-41 s per invoice on the primary, 10 s on the fallback.
+about 15 to 45 seconds per invoice on the primary, depending on how quickly the model responds;
+10 s on the fallback.
 
 ## Setup
 
