@@ -46,16 +46,16 @@ export default function RunLauncher() {
   }
 
   return (
-    <div className="mt-6 flex flex-col gap-4 md:flex-row">
-      <div className="flex-1 rounded border border-gray-200 bg-white p-4">
-        <label htmlFor="sample" className="block text-sm font-medium text-gray-700">Run sample</label>
+    <div className="mt-5 flex flex-col gap-4 md:flex-row">
+      <div className="card flex-1">
+        <label htmlFor="sample" className="card-title block">Run sample</label>
         <div className="mt-2 flex gap-2">
           <select id="sample" value={selected} onChange={(e) => setSelected(e.target.value)}
-                  className="flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm">
+                  className="input flex-1">
             {samples.map((s) => <option key={s.name} value={s.name}>{s.name}</option>)}
           </select>
           <button type="button" disabled={!selected || busy} onClick={() => go(() => processSample(selected))}
-                  className="rounded bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white disabled:bg-gray-300">
+                  className="btn btn-primary">
             Run
           </button>
         </div>
@@ -66,16 +66,16 @@ export default function RunLauncher() {
         onDragLeave={() => setDragging(false)}
         onDrop={(e) => { e.preventDefault(); setDragging(false); onFiles(e.dataTransfer.files); }}
         onClick={() => input.current?.click()}
-        className={"flex flex-1 cursor-pointer flex-col items-center justify-center rounded border-2 border-dashed p-4 text-sm " +
-          (dragging ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-white")}
+        className={"flex flex-1 cursor-pointer flex-col items-center justify-center gap-1 rounded-card border border-dashed p-6 text-sm " +
+          (dragging ? "border-ink bg-hover" : "border-ink-4 bg-surface hover:bg-sunken")}
       >
-        <span className="font-medium text-gray-700">Drag and drop an invoice PDF here</span>
-        <span className="text-gray-500">or click to browse (PDF, up to 10 MB, up to 5 pages)</span>
+        <span className="card-title">Drag and drop an invoice PDF here</span>
+        <span className="text-ink-3">or click to browse (PDF, up to 10 MB, up to 5 pages)</span>
         <input ref={input} type="file" accept="application/pdf" className="hidden" data-testid="upload-input"
                onChange={(e) => onFiles(e.target.files)} />
       </div>
 
-      {message && <div role="alert" className="text-sm text-red-700 md:basis-full">{message}</div>}
+      {message && <div role="alert" className="text-sm text-bad md:basis-full">{message}</div>}
     </div>
   );
 }

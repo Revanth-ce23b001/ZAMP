@@ -10,8 +10,9 @@ import { CodeChip, ConfidenceChip, ResultChip } from "@/components/ui";
 import type { AuditLog, Evidence, RunDetail, VendorSide } from "@/lib/client";
 import { qty, rupees, show, when } from "@/lib/format";
 
-const th = "px-2 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500";
-const td = "px-2 py-1.5 align-top";
+// Table cells take their padding, dividers and micro-label heads from .tbl (globals.css).
+const th = "";
+const td = "";
 
 // FR-017 critical fields
 const CRITICAL = new Set(["invoice_number", "invoice_date", "vendor_name", "vendor_gstin", "total", "po_reference"]);
@@ -40,24 +41,24 @@ export function ExtractedTab({ d }: { d: RunDetail }) {
   const poPrinted = !!f.po_reference?.value;
   return (
     <div className="space-y-6" data-testid="tab-extracted">
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-ink-3">
         {d.extraction?.ingest_method === "vision" ? "Scanned document, read by the vision model" : "Digital PDF, text layer read"} ·
         {" "}{d.extraction?.provider}/{d.extraction?.model}
-        {d.extraction?.cached && <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-gray-700">Cached extraction</span>}
+        {d.extraction?.cached && <span className="status s-nc ml-2"><span className="dot" aria-hidden />Cached extraction</span>}
         {" "}· confidence is model-reported, not a calibrated probability
       </p>
-      <table className="w-full text-sm">
+      <table className="tbl">
         <thead><tr><th className={th}>Field</th><th className={th}>Value</th><th className={th}>Confidence</th><th className={th}>Critical</th></tr></thead>
         <tbody>
           {FIELDS.map(([key, label, kind]) => {
             const fld = f[key] ?? {};
             const critical = CRITICAL.has(key) && (key !== "po_reference" || poPrinted);
             return (
-              <tr key={key} className="border-t border-gray-100">
+              <tr key={key}>
                 <td className={td}>{label}</td>
                 <td className={td + " font-mono"}>{fmt(kind, fld.value)}</td>
                 <td className={td}><ConfidenceChip value={fld.confidence} /></td>
-                <td className={td}>{critical ? <span title="Critical field (FR-017)" className="text-xs font-semibold text-blue-700">● critical</span> : ""}</td>
+                <td className={td}>{critical ? <span title="Critical field (FR-017)" className="text-xs font-semibold text-ink-2">● critical</span> : ""}</td>
               </tr>
             );
           })}
@@ -65,24 +66,24 @@ export function ExtractedTab({ d }: { d: RunDetail }) {
       </table>
 
       <div>
-        <h3 className="mb-1 font-semibold">Line items</h3>
-        <table className="w-full text-sm" data-testid="line-items">
-          <thead><tr><th className={th}>#</th><th className={th}>Item code</th><th className={th}>Description</th><th className={th}>Qty</th><th className={th}>Unit price</th><th className={th}>Amount</th></tr></thead>
+        <h3 className="card-title mb-2">Line items</h3>
+        <table className="tbl" data-testid="line-items">
+          <thead><tr><th className={th}>#</th><th className={th}>Item code</th><th className={th}>Description</th><th className={th}>Qty</th><th className={th + " num"}>Unit price</th><th className={th + " num"}>Amount</th></tr></thead>
           <tbody>
             {lines.map((l, i) => (
-              <tr key={i} className="border-t border-gray-100">
+              <tr key={i}>
                 <td className={td}>{i + 1}</td>
                 <td className={td + " font-mono"}>{show(l.item_code?.value)}</td>
                 <td className={td}>{show(l.description?.value)}</td>
                 <td className={td}>{show(l.quantity?.value)} <ConfidenceChip value={l.quantity?.confidence} /></td>
-                <td className={td}>{rupees(l.unit_price?.value)} <ConfidenceChip value={l.unit_price?.confidence} /></td>
-                <td className={td}>{rupees(l.amount?.value)}</td>
+                <td className={td + " num whitespace-nowrap"}>{rupees(l.unit_price?.value)} <ConfidenceChip value={l.unit_price?.confidence} /></td>
+                <td className={td + " num whitespace-nowrap"}>{rupees(l.amount?.value)}</td>
               </tr>
             ))}
             {charges.map((c, i) => (
-              <tr key={`c${i}`} className="border-t border-gray-100 text-gray-600">
+              <tr key={`c${i}`} className="text-ink-3">
                 <td className={td} /><td className={td} /><td className={td}>Other charge: {c.label}</td><td className={td} /><td className={td} />
-                <td className={td}>{rupees(c.amount?.value)}</td>
+                <td className={td + " num whitespace-nowrap"}>{rupees(c.amount?.value)}</td>
               </tr>
             ))}
           </tbody>
@@ -90,15 +91,15 @@ export function ExtractedTab({ d }: { d: RunDetail }) {
       </div>
 
       <div>
-        <h3 className="mb-1 font-semibold">Arithmetic (each equation allows ±₹1)</h3>
-        <table className="w-full text-sm" data-testid="arithmetic">
-          <thead><tr><th className={th}>Equation</th><th className={th}>Expected</th><th className={th}>Actual</th><th className={th}>Variance</th><th className={th}>Allowed</th><th className={th}>Result</th></tr></thead>
+        <h3 className="card-title mb-2">Arithmetic (each equation allows ±₹1)</h3>
+        <table className="tbl" data-testid="arithmetic">
+          <thead><tr><th className={th}>Equation</th><th className={th + " num"}>Expected</th><th className={th + " num"}>Actual</th><th className={th + " num"}>Variance</th><th className={th + " num"}>Allowed</th><th className={th}>Result</th></tr></thead>
           <tbody>
             {arithmetic.map((e, i) => (
-              <tr key={i} className="border-t border-gray-100">
+              <tr key={i}>
                 <td className={td}>{e.check.replace("arithmetic_", "")}</td>
-                <td className={td}>{show(e.expected)}</td><td className={td}>{show(e.actual)}</td>
-                <td className={td}>{show(e.variance)}</td><td className={td}>{show(e.allowed)}</td>
+                <td className={td + " num whitespace-nowrap"}>{show(e.expected)}</td><td className={td + " num whitespace-nowrap"}>{show(e.actual)}</td>
+                <td className={td + " num whitespace-nowrap"}>{show(e.variance)}</td><td className={td + " num whitespace-nowrap"}>{show(e.allowed)}</td>
                 <td className={td}><ResultChip result={e.result} /></td>
               </tr>
             ))}
@@ -113,7 +114,7 @@ export function ExtractedTab({ d }: { d: RunDetail }) {
 
 export function VendorBankTab({ d }: { d: RunDetail }) {
   const v = d.vendor;
-  if (!v) return <p className="text-sm text-gray-500">Vendor and bank checks did not run.</p>;
+  if (!v) return <p className="text-sm text-ink-3">Vendor and bank checks did not run.</p>;
   const inv: VendorSide = v.invoice;
   const m: VendorSide | null = v.master;
   const rows: [string, string | null | undefined, string | null | undefined, boolean][] = [
@@ -128,15 +129,15 @@ export function VendorBankTab({ d }: { d: RunDetail }) {
   return (
     <div className="space-y-4" data-testid="tab-vendor">
       {!v.identified && (
-        <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+        <div className="notice notice-hold">
           Vendor not identified in the vendor master{v.identification_note ? `: ${v.identification_note}` : ""}.
         </div>
       )}
-      <table className="w-full text-sm">
+      <table className="tbl">
         <thead><tr><th className={th}>Field</th><th className={th}>Invoice</th><th className={th}>Vendor master{m ? ` (${m.vendor_id})` : ""}</th></tr></thead>
         <tbody>
           {rows.map(([label, a, b, diff]) => (
-            <tr key={label} className={"border-t border-gray-100 " + (diff ? "bg-red-50" : "")} data-mismatch={diff ? "1" : undefined}>
+            <tr key={label} className={diff ? "bg-bad-bg" : ""} data-mismatch={diff ? "1" : undefined}>
               <td className={td}>{label}</td>
               <td className={td + " font-mono"}>{show(a)}</td>
               <td className={td + " font-mono"}>{show(b)}</td>
@@ -149,7 +150,7 @@ export function VendorBankTab({ d }: { d: RunDetail }) {
         {v.labels.gstin_master && <li>GSTIN: <strong>{v.labels.gstin_master}</strong></li>}
         {v.labels.bank && <li>Bank details: <strong>{v.labels.bank}</strong> <ResultChip result={v.labels.bank_result} /></li>}
       </ul>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-ink-3">
         Checked against the vendor master only. GST registration and bank account ownership are not verified externally.
       </p>
     </div>
@@ -163,13 +164,13 @@ export function DuplicatesTab({ d }: { d: RunDetail }) {
   const notes = (d.decision?.notes ?? []).filter((n) => n.startsWith("Similar invoice"));
   const dupStage = d.stage_results.find((s) => s.stage === "DUPLICATE");
   if (dupStage?.status === "NOT_CHECKED") {
-    return <p className="text-sm text-gray-600" data-testid="tab-duplicates">Not checked: {dupStage.summary.replace("Not checked: ", "")}.</p>;
+    return <p className="text-sm text-ink-3" data-testid="tab-duplicates">Not checked: {dupStage.summary.replace("Not checked: ", "")}.</p>;
   }
   const blocking = matches.filter((m) => m.tier !== "similar");
   return (
     <div className="space-y-4" data-testid="tab-duplicates">
-      {blocking.length === 0 ? <p className="text-sm text-gray-600">No duplicates found.</p> : (
-        <table className="w-full text-sm">
+      {blocking.length === 0 ? <p className="text-sm text-ink-3">No duplicates found.</p> : (
+        <table className="tbl">
           <thead><tr><th className={th}> </th><th className={th}>This invoice</th>
             {blocking.map((m) => <th key={m.ledger_id} className={th}>Matched ({m.tier})</th>)}</tr></thead>
           <tbody>
@@ -182,17 +183,17 @@ export function DuplicatesTab({ d }: { d: RunDetail }) {
                (m: any) => m.lines.map((l: any) => `${l.key} × ${qty(l.qty)}`).join(", ")],
               ["Status", d.decision?.status, (m: any) => m.status],
             ] as [string, any, (m: any) => any][]).map(([label, mine, get]) => (
-              <tr key={label} className="border-t border-gray-100">
-                <td className={td + " text-gray-500"}>{label}</td><td className={td}>{show(mine)}</td>
+              <tr key={label}>
+                <td className={td + " text-ink-3"}>{label}</td><td className={td}>{show(mine)}</td>
                 {blocking.map((m) => <td key={m.ledger_id} className={td}>{show(get(m))}</td>)}
               </tr>
             ))}
-            <tr className="border-t border-gray-100">
-              <td className={td + " text-gray-500"}>Original</td><td className={td} />
+            <tr>
+              <td className={td + " text-ink-3"}>Original</td><td className={td} />
               {blocking.map((m) => (
                 <td key={m.ledger_id} className={td}>
-                  {m.run_id ? <Link className="text-blue-700 underline" href={`/runs/${m.run_id}`}>{m.run_display}</Link>
-                            : <span className="text-gray-600">Seeded history ({m.ledger_id})</span>}
+                  {m.run_id ? <Link className="font-medium underline" href={`/runs/${m.run_id}`}>{m.run_display}</Link>
+                            : <span className="text-ink-3">Seeded history ({m.ledger_id})</span>}
                 </td>))}
             </tr>
           </tbody>
@@ -200,7 +201,7 @@ export function DuplicatesTab({ d }: { d: RunDetail }) {
       )}
       {notes.length > 0 && (
         <div>
-          <h3 className="font-semibold">Similar invoices (informational, no effect on the decision)</h3>
+          <h3 className="card-title">Similar invoices (informational, no effect on the decision)</h3>
           <ul className="list-disc pl-5 text-sm">{notes.map((n) => <li key={n}>{n}</li>)}</ul>
         </div>
       )}
@@ -216,51 +217,59 @@ export function PoMatchTab({ d }: { d: RunDetail }) {
   const poStage = d.stage_results.find((s) => s.stage === "PO_MATCH");
   return (
     <div className="space-y-5" data-testid="tab-po">
-      <p className="text-xs text-gray-500">Two-way match: invoice against purchase order. Goods receipt is not checked.</p>
-      {!p && <p className="text-sm text-gray-700">{poStage?.summary}</p>}
+      <p className="text-xs text-ink-3">Two-way match: invoice against purchase order. Goods receipt is not checked.</p>
+      {!p && <p className="text-sm text-ink-2">{poStage?.summary}</p>}
       {p && (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4" data-testid="po-header">
-          {([
-            ["PO number", `${p.po_number} (${p.method})`],
-            ["PO total", p.po_total.display],
-            ["Previously approved", `${p.previously_approved.display} (${p.invoices_previously_approved} invoice${p.invoices_previously_approved === 1 ? "" : "s"})`],
-            ["This invoice (taxable)", p.this_invoice?.display ?? "—"],
-            ["Remaining", p.remaining.display],
-            ["Allowed overrun", p.allowed_overrun.display],
-            ["Ceiling", p.ceiling.display],
-          ] as [string, string][]).map(([k, v]) => (
-            <div key={k} className="rounded border border-gray-200 bg-white p-2" data-testid={`po-${k.toLowerCase().replace(/[^a-z]+/g, "-")}`}>
-              <div className="text-xs text-gray-500">{k}</div><div className="font-semibold">{v}</div>
-            </div>
-          ))}
+        <div data-testid="po-header">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="card-title font-mono" data-testid="po-po-number">{p.po_number} ({p.method})</span>
+            <span className="text-[13px] text-ink-3" data-testid="po-ceiling">Ceiling {p.ceiling.display} (PO total + allowed overrun)</span>
+          </div>
+          <div className="mt-3 grid grid-cols-2 overflow-hidden rounded-card border border-line md:grid-cols-5">
+            {([
+              ["PO total", p.po_total.display, null],
+              ["Previously approved", p.previously_approved.display,
+               `${p.invoices_previously_approved} invoice${p.invoices_previously_approved === 1 ? "" : "s"}`],
+              ["This invoice (taxable)", p.this_invoice?.display ?? "—", null],
+              ["Remaining", p.remaining.display, null],
+              ["Allowed overrun", p.allowed_overrun.display, "separate from remaining"],
+            ] as [string, string, string | null][]).map(([k, v, sub]) => (
+              <div key={k} data-testid={`po-${k.toLowerCase().replace(/[^a-z]+/g, "-")}`}
+                   className={"min-w-0 border-line px-3 py-4 [&:not(:first-child)]:border-l " + (k === "Allowed overrun" ? "bg-sunken" : "bg-surface")}>
+                <div className="micro">{k}</div>
+                <div className="mt-1.5 whitespace-nowrap text-[16px] font-semibold tabular-nums">{v}</div>
+                {sub && <div className="text-xs text-ink-3">{sub}</div>}
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {cands.length > 0 && (
         <div>
-          <h3 className="mb-1 font-semibold">Candidate POs (deterministic score: 60 lines + 30 value + 10 date)</h3>
-          <table className="w-full text-sm" data-testid="po-candidates">
+          <h3 className="card-title mb-2">Candidate POs (deterministic score: 60 lines + 30 value + 10 date)</h3>
+          <table className="tbl" data-testid="po-candidates">
             <thead><tr><th className={th}>PO</th><th className={th}>Score</th><th className={th}>Breakdown</th><th className={th}> </th></tr></thead>
             <tbody>{cands.map((c) => (
-              <tr key={c.po_number} className="border-t border-gray-100">
+              <tr key={c.po_number}>
                 <td className={td}>{c.po_number}</td><td className={td}>{c.score}</td>
-                <td className={td + " text-xs"}>lines {show(c.breakdown.line_pairing)} ({show(c.breakdown.paired)}) · value {show(c.breakdown.value_fits)} · date {show(c.breakdown.date_window)}</td>
-                <td className={td}>{c.plausible ? "plausible" : ""}</td>
+                <td className={td + " text-ink-3"}>lines {show(c.breakdown.line_pairing)} ({show(c.breakdown.paired)}) · value {show(c.breakdown.value_fits)} · date {show(c.breakdown.date_window)}</td>
+                <td className={td}>{c.plausible ? <span className="status s-run"><span className="dot" aria-hidden />plausible</span> : ""}</td>
               </tr>))}</tbody>
           </table>
         </div>
       )}
       {p && (
         <div>
-          <h3 className="mb-1 font-semibold">Line diff</h3>
-          <table className="w-full text-sm" data-testid="po-lines">
+          <h3 className="card-title mb-2">Line diff</h3>
+          <table className="tbl" data-testid="po-lines">
             <thead><tr>
               <th className={th}>Invoice line</th><th className={th}>PO line</th><th className={th}>Paired by</th>
               <th className={th}>Qty: PO / prev / this / excess</th><th className={th}>Unit price: PO / invoice / var / allowed</th><th className={th}>Result</th>
             </tr></thead>
             <tbody>{p.lines.map((l) => (
-              <tr key={l.invoice_line} className="border-t border-gray-100">
+              <tr key={l.invoice_line}>
                 <td className={td}>{l.invoice_line}. {show(l.description)}</td>
-                <td className={td}>{l.po_line_id ? `${l.po_line_id} ${l.po_item_code}` : "no matching PO line"}</td>
+                <td className={td + " whitespace-nowrap"}>{l.po_line_id ? <>{l.po_line_id} <span className="code">{l.po_item_code}</span></> : "no matching PO line"}</td>
                 <td className={td}>{show(l.pairing)}</td>
                 <td className={td}>{l.quantity ? `${qty(l.quantity.po)} / ${qty(l.quantity.previously_approved)} / ${qty(l.quantity.this_invoice)} / ${qty(l.quantity.excess)}` : "—"}</td>
                 <td className={td}>{l.unit_price ? `${l.unit_price.po.display} / ${l.unit_price.invoice.display} / ${l.unit_price.variance_pct >= 0 ? "+" : ""}${l.unit_price.variance_pct}% / ${l.unit_price.allowed_pct}%` : "—"}</td>
@@ -286,18 +295,18 @@ export function EvidenceTab({ evidence }: { evidence: Evidence[] }) {
   return (
     <div className="space-y-3" data-testid="tab-evidence">
       <div className="flex gap-2 text-sm">
-        <select aria-label="Filter by stage" value={stage} onChange={(e) => setStage(e.target.value)} className="rounded border border-gray-300 px-2 py-1">
+        <select aria-label="Filter by stage" value={stage} onChange={(e) => setStage(e.target.value)} className="input">
           <option value="">All stages</option>{STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-        <select aria-label="Filter by result" value={result} onChange={(e) => setResult(e.target.value)} className="rounded border border-gray-300 px-2 py-1">
+        <select aria-label="Filter by result" value={result} onChange={(e) => setResult(e.target.value)} className="input">
           <option value="">All results</option>{RESULTS.map((r) => <option key={r} value={r}>{r}</option>)}
         </select>
-        <span className="self-center text-gray-500">{rows.length} of {evidence.length}</span>
+        <span className="self-center text-ink-3">{rows.length} of {evidence.length}</span>
       </div>
-      <table className="w-full text-xs">
+      <table className="tbl text-xs">
         <thead><tr>{["Stage", "Check", "Source fields", "Expected", "Actual", "Variance", "Allowed", "Result", "Code"].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
         <tbody>{rows.map((e, i) => (
-          <tr key={i} className="border-t border-gray-100" data-testid="evidence-row">
+          <tr key={i} data-testid="evidence-row">
             <td className={td}>{e.stage}</td><td className={td}>{e.check}</td><td className={td}>{e.source_fields.join(", ")}</td>
             <td className={td}>{show(e.expected)}</td><td className={td}>{show(e.actual)}</td><td className={td}>{show(e.variance)}</td>
             <td className={td}>{show(e.allowed)}</td><td className={td}><ResultChip result={e.result} /></td>
@@ -329,24 +338,24 @@ function describe(e: AuditLog["events"][number]): string {
 }
 
 export function AuditTab({ audit }: { audit: AuditLog | null }) {
-  if (!audit) return <p className="text-sm text-gray-500">Loading audit trail…</p>;
+  if (!audit) return <p className="text-sm text-ink-3">Loading audit trail…</p>;
   return (
     <div className="space-y-5" data-testid="tab-audit">
       <ol className="space-y-1 text-sm">
         {audit.events.map((e) => (
-          <li key={e.event_id} className="flex gap-3 border-b border-gray-50 py-1">
-            <span className="w-40 shrink-0 text-xs text-gray-500">{when(e.created_at)}</span>
-            <span className="w-32 shrink-0 font-mono text-xs">{e.type}</span>
+          <li key={e.event_id} className="flex gap-3 border-b border-line py-2 last:border-0">
+            <span className="w-40 shrink-0 text-xs text-ink-3 tabular-nums">{when(e.created_at)}</span>
+            <span className="w-36 shrink-0 font-mono text-xs text-ink-2">{e.type}</span>
             <span>{describe(e)}</span>
           </li>))}
       </ol>
       {audit.overrides.length > 0 && (
         <div>
-          <h3 className="mb-1 font-semibold">Override records</h3>
-          <table className="w-full text-xs" data-testid="override-records">
+          <h3 className="card-title mb-2">Override records</h3>
+          <table className="tbl text-xs" data-testid="override-records">
             <thead><tr>{["When", "Action", "Reviewer", "Status", "Codes overridden", "Reason", "Bank verification", "Confirmed PO", "Commit"].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
             <tbody>{audit.overrides.map((o) => (
-              <tr key={o.override_id} className="border-t border-gray-100">
+              <tr key={o.override_id}>
                 <td className={td}>{when(o.created_at)}</td><td className={td}>{o.action}</td><td className={td}>{o.reviewer_name}</td>
                 <td className={td}>{o.original_status} → {o.new_status}</td><td className={td}>{o.codes_overridden.join(", ")}</td>
                 <td className={td}>{o.reason}</td>

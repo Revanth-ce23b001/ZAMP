@@ -19,26 +19,28 @@ type StageKey = (typeof STAGES)[number][0];
 type Status = "PENDING" | "RUNNING" | "PASSED" | "FAILED" | "NEEDS_REVIEW" | "NOT_CHECKED" | "ERROR";
 type Row = { status: Status; summary?: string; startedAt?: string; endedAt?: string };
 
+// Status pills (globals.css): text on background with a solid dot. Pending is an outline.
 const CHIP: Record<Status, string> = {
-  PENDING: "border border-gray-300 text-gray-500 bg-white",
-  RUNNING: "bg-blue-100 text-blue-800 animate-pulse",
-  PASSED: "bg-green-100 text-green-800",
-  FAILED: "bg-red-100 text-red-800",
-  NEEDS_REVIEW: "bg-amber-100 text-amber-800",
-  NOT_CHECKED: "bg-gray-200 text-gray-700",
-  ERROR: "bg-red-100 text-red-800",
+  PENDING: "border border-line bg-surface text-ink-3",
+  RUNNING: "s-run",
+  PASSED: "s-ok",
+  FAILED: "s-bad",
+  NEEDS_REVIEW: "s-hold",
+  NOT_CHECKED: "s-nc",
+  ERROR: "s-bad",
 };
 const LABEL: Record<Status, string> = {
   PENDING: "Pending", RUNNING: "Running", PASSED: "Passed", FAILED: "Failed",
   NEEDS_REVIEW: "Needs Review", NOT_CHECKED: "Not Checked", ERROR: "Error",
 };
-const DOT: Record<Status, string> = {
-  PENDING: "border-2 border-gray-300 bg-white", RUNNING: "bg-blue-500 animate-pulse", PASSED: "bg-green-500",
-  FAILED: "bg-red-500", NEEDS_REVIEW: "bg-amber-500", NOT_CHECKED: "bg-gray-400", ERROR: "bg-red-500",
+// 22px stage nodes on the rail: outlined while pending, ringed while running, solid once settled.
+const NODE: Record<Status, string> = {
+  PENDING: "border-2 border-ink-4 bg-surface",
+  RUNNING: "bg-run-dot ring-4 ring-run-bg",
+  PASSED: "bg-ok-dot", FAILED: "bg-bad-dot", NEEDS_REVIEW: "bg-hold-dot", NOT_CHECKED: "bg-nc-dot", ERROR: "bg-bad-dot",
 };
-const DECISION_BADGE: Record<string, string> = {
-  APPROVE: "bg-green-600 text-white", HOLD: "bg-amber-500 text-white", REJECT: "bg-red-600 text-white",
-};
+const GLYPH: Partial<Record<Status, string>> = { PASSED: "✓", FAILED: "✕", NEEDS_REVIEW: "!", NOT_CHECKED: "–", ERROR: "!" };
+const DECISION_BADGE: Record<string, string> = { APPROVE: "s-ok", HOLD: "s-hold", REJECT: "s-bad" };
 
 const emptyRows = (): Record<StageKey, Row> =>
   Object.fromEntries(STAGES.map(([k]) => [k, { status: "PENDING" as Status }])) as Record<StageKey, Row>;
@@ -173,83 +175,90 @@ export default function LiveRun({ runId, existing }: { runId: string; existing: 
   return (
     <section>
       {existing && (
-        <div className="mb-4 rounded border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+        <div className="notice notice-run mb-5">
           This exact file was already processed in {runLabel}. It was not processed again.
         </div>
       )}
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-semibold">{runLabel} – Processing</h1>
-        <span className="text-sm text-gray-500">{header.file_name}</span>
-        {reconnecting && <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-700">Reconnecting…</span>}
+        <h1 className="page-title">{runLabel} – Processing</h1>
+        <span className="font-mono text-[13px] text-ink-3">{header.file_name}</span>
+        {reconnecting && <span className="status s-nc"><span className="dot" aria-hidden />Reconnecting…</span>}
       </div>
 
       {queued !== null && (
-        <div className="mt-4 rounded border border-gray-200 bg-white p-3 text-sm">
+        <div className="card mt-5 !py-4">
           Queued: {queued === 0 ? "next to process" : `${queued} run${queued === 1 ? "" : "s"} ahead`}
         </div>
       )}
       {decision && (
-        <div data-testid="decision-banner" className="mt-4 flex flex-wrap items-center gap-3 rounded border border-gray-200 bg-white p-3">
-          <span className={"rounded px-3 py-1 text-sm font-bold " + (DECISION_BADGE[decision.status] ?? "bg-gray-500 text-white")}>
-            {decision.status}
+        <div data-testid="decision-banner" className="card mt-5 flex flex-wrap items-center gap-3 !py-4">
+          <span className={"status status-lg " + (DECISION_BADGE[decision.status] ?? "s-nc")}>
+            <span className="dot" aria-hidden />{decision.status}
           </span>
           {decision.status === "APPROVE" && decision.reason_codes.length > 0 && (
-            <span className="text-sm text-gray-600">approved by reviewer override of</span>
+            <span className="text-ink-2">approved by reviewer override of</span>
           )}
           {decision.reason_codes.length === 0
-            ? <span className="text-sm text-gray-600">All checks passed</span>
+            ? <span className="text-ink-2">All checks passed</span>
             : decision.reason_codes.map((c) => (
-                <span key={c} className="rounded bg-gray-100 px-2 py-0.5 font-mono text-xs text-gray-800">{c}</span>))}
-          {commitMsg && <span className="text-sm text-gray-600">· {commitMsg}</span>}
+                <span key={c} className="code">{c}</span>))}
+          {commitMsg && <span className="text-ink-2">· {commitMsg}</span>}
           {ended.current && (
-            <Link href={`/runs/${runId}`} className="ml-auto rounded bg-blue-600 px-3 py-1 text-sm font-semibold text-white"
+            <Link href={`/runs/${runId}`} className="btn btn-primary ml-auto no-underline"
                   data-testid="view-decision">View decision</Link>
           )}
         </div>
       )}
       {error && (
-        <div role="alert" className="mt-4 flex items-center gap-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+        <div role="alert" className="notice notice-bad mt-5 flex items-center gap-3">
           <span className="font-semibold">ERROR</span><span className="flex-1">{error}</span>
-          <button type="button" onClick={onRetry} className="rounded bg-red-600 px-3 py-1 text-white">Retry</button>
+          <button type="button" onClick={onRetry} className="btn btn-primary">Retry</button>
         </div>
       )}
 
-      <div className="mt-6 flex flex-col gap-6 lg:flex-row">
+      <div className="mt-6 flex flex-col gap-5 lg:flex-row">
         <ol className="lg:w-3/5" data-testid="stepper">
           {STAGES.map(([key, name], i) => {
             const r = rows[key];
             const ev = evidenceFor(key);
             const expanded = open === key;
             return (
-              <li key={key} data-stage={key} data-status={r.status} className="relative flex gap-3 pb-4">
-                {i < STAGES.length - 1 && <span className="absolute left-[9px] top-6 h-full w-px bg-gray-200" />}
-                <span className={"mt-1 h-5 w-5 shrink-0 rounded-full " + DOT[r.status]} />
-                <div className="min-w-0 flex-1 rounded border border-gray-200 bg-white">
+              <li key={key} data-stage={key} data-status={r.status} className="relative flex gap-4 pb-3">
+                {/* connected rail: runs from this node's centre to the next */}
+                {i < STAGES.length - 1 && <span aria-hidden className="absolute bottom-0 left-[10.5px] top-[33px] w-px bg-line" />}
+                <span aria-hidden
+                      className={"relative z-10 mt-[11px] flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-[11px] font-semibold leading-none text-white " + NODE[r.status]}>
+                  {GLYPH[r.status] ?? ""}
+                </span>
+                <div className={"min-w-0 flex-1 rounded-card border border-line " + (r.status === "RUNNING" ? "bg-sunken" : "bg-surface")}>
                   <button type="button" onClick={() => setOpen(expanded ? null : key)}
-                          className="flex w-full items-center gap-3 px-3 py-2 text-left">
-                    <span className="w-28 font-medium">{name}</span>
-                    <span className={"rounded px-2 py-0.5 text-xs " + CHIP[r.status]}>{LABEL[r.status]}</span>
-                    <span className="w-12 text-xs text-gray-400">{duration(r.startedAt, r.endedAt)}</span>
-                    <span className="min-w-0 flex-1 truncate text-sm text-gray-600" title={r.summary}>{r.summary}</span>
+                          className="flex min-h-11 w-full items-center gap-3 px-4 py-2 text-left">
+                    <span className={"w-28 font-medium " + (r.status === "PENDING" ? "text-ink-4" : "text-ink")}>{name}</span>
+                    <span className={"status " + CHIP[r.status]}>
+                      {r.status !== "PENDING" && <span className={"dot" + (r.status === "RUNNING" ? " animate-pulse" : "")} aria-hidden />}
+                      {LABEL[r.status]}
+                    </span>
+                    <span className="w-12 text-xs text-ink-3 tabular-nums">{duration(r.startedAt, r.endedAt)}</span>
+                    <span className="min-w-0 flex-1 truncate text-[13px] text-ink-3" title={r.summary}>{r.summary}</span>
                   </button>
                   {expanded && (
-                    <div className="border-t border-gray-100 px-3 py-2 text-xs">
+                    <div className="border-t border-line px-4 py-3 text-xs">
                       {key === "EXTRACT" && detail?.extraction && (
                         <p className="mb-2">{detail.extraction.provider}/{detail.extraction.model}
-                          {detail.extraction.cached && <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5">Cached extraction</span>}</p>
+                          {detail.extraction.cached && <span className="status s-nc ml-2"><span className="dot" aria-hidden />Cached extraction</span>}</p>
                       )}
-                      {ev.length === 0 ? <p className="text-gray-500">{r.summary ?? "No evidence yet."}</p> : (
-                        <table className="w-full">
-                          <thead className="text-left text-gray-500">
-                            <tr><th>Check</th><th>Expected</th><th>Actual</th><th>Variance</th><th>Allowed</th><th>Result</th><th>Code</th></tr>
+                      {ev.length === 0 ? <p className="text-ink-3">{r.summary ?? "No evidence yet."}</p> : (
+                        <table className="tbl text-xs">
+                          <thead>
+                            <tr><th>Check</th><th className="num">Expected</th><th className="num">Actual</th><th className="num">Variance</th><th className="num">Allowed</th><th>Result</th><th>Code</th></tr>
                           </thead>
                           <tbody>
                             {ev.map((e, j) => (
-                              <tr key={j} className="border-t border-gray-50 align-top">
-                                <td className="pr-2">{e.check}</td><td className="pr-2">{show(e.expected)}</td>
-                                <td className="pr-2">{show(e.actual)}</td><td className="pr-2">{show(e.variance)}</td>
-                                <td className="pr-2">{show(e.allowed)}</td><td className="pr-2">{e.result}</td>
-                                <td className="font-mono">{e.reason_code ?? ""}</td>
+                              <tr key={j}>
+                                <td>{e.check}</td><td className="num">{show(e.expected)}</td>
+                                <td className="num">{show(e.actual)}</td><td className="num">{show(e.variance)}</td>
+                                <td className="num">{show(e.allowed)}</td><td>{e.result}</td>
+                                <td>{e.reason_code ? <span className="code">{e.reason_code}</span> : ""}</td>
                               </tr>))}
                           </tbody>
                         </table>
@@ -262,7 +271,7 @@ export default function LiveRun({ runId, existing }: { runId: string; existing: 
           })}
         </ol>
         <div className="lg:w-2/5">
-          <iframe title="Invoice PDF" src={fileUrl(runId)} className="h-[640px] w-full rounded border border-gray-200 bg-white" />
+          <iframe title="Invoice PDF" src={fileUrl(runId)} className="h-[640px] w-full rounded-card border border-line bg-surface" />
         </div>
       </div>
     </section>

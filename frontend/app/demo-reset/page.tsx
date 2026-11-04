@@ -72,18 +72,18 @@ export default function DemoResetPage() {
   }
 
   return (
-    <section className="mx-auto max-w-xl rounded border border-gray-200 bg-white p-8 text-center">
-      <h1 className="text-2xl font-semibold">Reset Demo Data</h1>
-      <p className="mt-3 text-sm text-gray-600">
+    <section className="card mx-auto max-w-xl !p-8 text-center">
+      <h1 className="page-title">Reset Demo Data</h1>
+      <p className="mt-3 text-ink-2">
         Restore the application to the original synthetic demo data (fixtures-v1). This clears runs and
         related data, and reloads the seeded vendors, POs and ledger.
       </p>
 
-      <div className="mt-5 rounded border border-amber-300 bg-amber-50 p-3 text-left text-sm text-amber-900">
+      <div className="notice notice-hold mt-5 text-left">
         This action uses synthetic data only. It is intended for the interview demo and can be used by anyone.
       </div>
 
-      <label htmlFor="confirm" className="mt-6 block text-left text-sm text-gray-700">
+      <label htmlFor="confirm" className="mt-6 block text-left text-ink-2">
         To confirm, type <strong>RESET</strong> in the box below.
       </label>
       <input
@@ -92,13 +92,13 @@ export default function DemoResetPage() {
         onChange={(e) => setTyped(e.target.value)}
         placeholder="RESET"
         autoComplete="off"
-        className="mt-2 w-full rounded border border-gray-300 px-3 py-2 text-sm"
+        className="input mt-2 w-full"
       />
       <button
         type="button"
         onClick={onReset}
         disabled={typed !== CONFIRM_PHRASE || busy}
-        className="mt-4 w-full rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
+        className="btn btn-primary mt-4 w-full"
       >
         {busy ? "Resetting…" : "Reset Demo Data"}
       </button>
@@ -107,15 +107,15 @@ export default function DemoResetPage() {
         <div
           role="status"
           className={
-            "mt-4 rounded p-3 text-left text-sm " +
-            (outcome.kind === "success" ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800")
+            "notice mt-4 text-left " +
+            (outcome.kind === "success" ? "notice-ok" : "notice-bad")
           }
         >
           {outcome.text}
         </div>
       )}
 
-      <p className="mt-6 text-xs text-gray-500">
+      <p className="mt-6 text-xs text-ink-3">
         Rate limits: 1 successful reset / 30 seconds; 5 rejected attempts per IP / 15 minutes
       </p>
     </section>

@@ -13,16 +13,24 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link rel="stylesheet"
+              href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
+      </head>
       <body className="min-h-screen">
-        <header className="h-14 border-b border-gray-200 bg-white">
-          <div className="mx-auto flex h-full max-w-7xl items-stretch gap-6 px-6">
-            <Link href="/work-queue" className="flex items-center">
-              <span className="rounded bg-blue-700 px-3 py-1.5 text-sm font-semibold text-white">ClearMatch AP</span>
+        <header className="h-14 border-b border-line bg-surface">
+          <div className="mx-auto flex h-full max-w-7xl items-center gap-6 px-6">
+            <Link href="/work-queue" className="flex items-center gap-2 no-underline">
+              <span aria-hidden className="flex h-7 w-7 items-center justify-center rounded-ctl bg-accent text-[11px] font-semibold text-white">CM</span>
+              <span className="text-[15px] font-semibold tracking-tight text-ink">ClearMatch AP</span>
             </Link>
             <TopNav />
-            <div className="ml-auto flex items-center">
+            <div className="ml-auto flex items-center gap-3">
+              <span className="hidden rounded-full border border-line px-3 py-1 text-xs font-medium text-ink-2 sm:inline-block">Demo data</span>
               {/* PRD §10: the top bar carries "Reset demo data". Wireframe screen 11 is its page. */}
-              <Link href="/demo-reset" className="text-sm text-gray-600 hover:text-gray-900">
+              <Link href="/demo-reset" className="btn btn-secondary">
                 Reset demo data
               </Link>
             </div>

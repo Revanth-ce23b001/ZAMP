@@ -9,7 +9,9 @@ import PoTable from "@/components/PoTable";
 import { getDashboard, type ApiError, type Dashboard } from "@/lib/client";
 import { seconds } from "@/lib/format";
 
-const SEVERITY_BAR: Record<string, string> = { REJECT: "bg-red-500", HOLD: "bg-amber-500" };
+const SEVERITY_BAR: Record<string, string> = { REJECT: "bg-bad-dot", HOLD: "bg-hold-dot" };
+
+const TILE_DOT: Record<string, string> = { "m-approved": "s-ok", "m-hold": "s-hold", "m-rejected": "s-bad" };
 
 export default function ReportsPage() {
   const [d, setD] = useState<Dashboard | null>(null);
@@ -18,8 +20,8 @@ export default function ReportsPage() {
     getDashboard().then(setD).catch((e: ApiError) => setError(e.message ?? "Could not load reports"));
   }, []);
 
-  if (error) return <div role="alert" className="rounded border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</div>;
-  if (!d) return <div className="h-40 animate-pulse rounded bg-gray-100" data-testid="reports-loading" />;
+  if (error) return <div role="alert" className="notice notice-bad">{error}</div>;
+  if (!d) return <div className="h-40 animate-pulse rounded-card bg-hover" data-testid="reports-loading" />;
 
   const max = Math.max(1, ...d.exceptions_by_reason.map((e) => e.count));
   const tiles: [string, string, string][] = [
@@ -35,50 +37,50 @@ export default function ReportsPage() {
   return (
     <section>
       <div className="flex flex-wrap items-baseline gap-3">
-        <h1 className="text-2xl font-semibold">Reports</h1>
-        <span data-testid="demo-label" className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-700">{d.label}</span>
+        <h1 className="page-title">Reports</h1>
+        <span data-testid="demo-label" className="rounded-full border border-line px-3 py-1 text-xs font-medium text-ink-2">{d.label}</span>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
+      <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-7">
         {tiles.map(([label, value, id]) => (
-          <div key={id} className="rounded border border-gray-200 bg-white p-3">
-            <div className="text-xs text-gray-500">{label}</div>
-            <div data-testid={id} className="mt-1 text-xl font-semibold">{value}</div>
+          <div key={id} className="card !p-5">
+            <div className="micro flex min-h-[2.6em] items-start gap-2">{TILE_DOT[id] && <span className={"dot mt-[4px] " + TILE_DOT[id]} aria-hidden />}{label}</div>
+            <div data-testid={id} className="mt-2 text-[22px] font-semibold leading-tight tracking-tight tabular-nums">{value}</div>
           </div>
         ))}
       </div>
-      <p className="mt-2 text-xs text-gray-500">
+      <p className="mt-3 text-[13px] text-ink-3">
         Auto-approval rate = approved by rules without a reviewer ({d.auto_approval_rate.numerator}) ÷ decided invoices
         ({d.auto_approval_rate.denominator}). Errors and in-progress runs are not counted as processed
         {(d.by_status.ERROR ?? 0) > 0 && <> ({d.by_status.ERROR} in error)</>}.
       </p>
 
-      <h2 className="mt-8 text-lg font-semibold">Exceptions by reason</h2>
-      <div className="mt-2 rounded border border-gray-200 bg-white p-4" data-testid="exceptions">
-        {d.exceptions_by_reason.length === 0 && <p className="text-sm text-gray-500">No exceptions yet.</p>}
-        <ul className="space-y-2">
+      <h2 className="section-title mt-8">Exceptions by reason</h2>
+      <div className="card mt-3" data-testid="exceptions">
+        {d.exceptions_by_reason.length === 0 && <p className="text-ink-3">No exceptions yet.</p>}
+        <ul className="space-y-1">
           {d.exceptions_by_reason.map((e) => (
             <li key={e.code}>
               <Link href={`/work-queue?reason_code=${e.code}`} data-testid="exception-row" data-code={e.code}
-                    className="flex items-center gap-3 rounded px-1 hover:bg-blue-50">
-                <span className="w-64 shrink-0 font-mono text-xs text-blue-700 underline">{e.code}</span>
-                <span className="h-4 flex-1">
-                  <span className={"block h-4 rounded " + (SEVERITY_BAR[e.severity] ?? "bg-gray-400")}
+                    className="flex min-h-11 items-center gap-4 rounded-ctl px-2 no-underline hover:bg-hover">
+                <span className="w-64 shrink-0"><span className="code">{e.code}</span></span>
+                <span className="h-2 flex-1 rounded-full bg-hover">
+                  <span className={"block h-2 rounded-full " + (SEVERITY_BAR[e.severity] ?? "bg-nc-dot")}
                         style={{ width: `${(e.count / max) * 100}%` }} />
                 </span>
-                <span className="w-8 text-right text-sm font-medium" data-testid="exception-count">{e.count}</span>
+                <span className="w-8 text-right font-semibold tabular-nums text-ink" data-testid="exception-count">{e.count}</span>
               </Link>
             </li>
           ))}
         </ul>
       </div>
 
-      <h2 className="mt-8 text-lg font-semibold">PO balances</h2>
-      <p className="mt-1 text-xs text-gray-500">
+      <h2 className="section-title mt-8">PO balances</h2>
+      <p className="mt-1 text-[13px] text-ink-3">
         Remaining = PO total − approved (pre-tax). The allowed overrun is shown separately and is not added to remaining.
         Click a PO to see its invoices.
       </p>
-      <div className="mt-2"><PoTable pos={d.po_balances} /></div>
+      <div className="mt-3"><PoTable pos={d.po_balances} /></div>
     </section>
   );
 }

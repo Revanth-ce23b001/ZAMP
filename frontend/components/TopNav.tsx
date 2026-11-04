@@ -15,7 +15,7 @@ const TABS = [
 export default function TopNav() {
   const pathname = usePathname();
   return (
-    <nav className="flex h-full items-stretch gap-1" aria-label="Main">
+    <nav className="flex items-center gap-1" aria-label="Main">
       {TABS.map((tab) => {
         const active = pathname === tab.href || pathname.startsWith(tab.href + "/");
         return (
@@ -24,10 +24,8 @@ export default function TopNav() {
             href={tab.href}
             aria-current={active ? "page" : undefined}
             className={
-              "flex items-center border-b-2 px-4 text-sm " +
-              (active
-                ? "border-blue-600 font-semibold text-blue-700"
-                : "border-transparent text-gray-600 hover:text-gray-900")
+              "flex min-h-11 items-center rounded-[6px] px-3 text-sm no-underline " +
+              (active ? "bg-hover font-semibold text-accent" : "font-medium text-ink-2 hover:bg-hover hover:text-ink")
             }
           >
             {tab.label}
