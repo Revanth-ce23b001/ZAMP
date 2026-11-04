@@ -592,3 +592,27 @@ def test_policy_page_renders_every_key_and_code(browser):
     assert "350 ms" in page.get_by_test_id("stepper-note").inner_text()
     page.screenshot(path=str(SHOTS / "19_policy.png"), full_page=True)
     page.close()
+
+
+# ======================================================================= Day 8: measured accuracy
+
+def test_accuracy_page_renders_both_tables_and_footer(browser):
+    body = httpx.get(f"{API}/api/accuracy").json()
+    page = browser.new_page(viewport={"width": 1400, "height": 1000})
+    page.goto(f"{WEB}/accuracy")
+    page.get_by_test_id("accuracy-fields").wait_for(timeout=20000)
+    assert page.get_by_role("heading", name="Measured accuracy").count() == 1
+    assert page.get_by_test_id("accuracy-field").count() == len(body["field_accuracy"])
+    assert page.get_by_test_id("accuracy-decision").count() == body["decision_accuracy"]["total"]
+    totals = body["field_totals"]
+    assert page.get_by_test_id("acc-fields-headline").inner_text() == f"{totals['correct']}/{totals['total']}"
+    d = body["decision_accuracy"]
+    assert page.get_by_test_id("acc-decisions-headline").inner_text() == f"{d['correct']}/{d['total']}"
+    footer = page.get_by_test_id("accuracy-footer").inner_text().lower()
+    for part in (body["_meta"]["policy_version"][:12], f"{body['_meta']['sample_size']} samples", "gemini-3.6-flash",
+                 "synthetic demo dataset"):
+        assert part in footer, part
+    if totals["unresolved"]:
+        assert page.get_by_test_id("accuracy-unresolved").is_visible()          # unresolved shown, not hidden
+    page.screenshot(path=str(SHOTS / "20_accuracy.png"), full_page=True)
+    page.close()

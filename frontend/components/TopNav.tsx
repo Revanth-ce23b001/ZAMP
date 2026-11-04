@@ -10,6 +10,7 @@ const TABS = [
   { href: "/vendors", label: "Vendors" },
   { href: "/reports", label: "Reports" },
   { href: "/policy", label: "Policy" },
+  { href: "/accuracy", label: "Accuracy" },
 ];
 
 export default function TopNav() {

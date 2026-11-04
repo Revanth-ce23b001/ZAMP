@@ -244,3 +244,33 @@ export const getDashboard = () => getJson<Dashboard>("/api/dashboard");
 export const listPos = () => getJson<PoBalance[]>("/api/pos");
 export const listVendors = () => getJson<Vendor[]>("/api/vendors");
 export const getPolicy = () => getJson<Policy>("/api/policy");
+
+// ---------------------------------------------------------------- measured accuracy (DEC-018)
+
+export type AccuracyMiss = { test_id: string; file: string; expected: unknown; returned: unknown };
+export type AccuracyField = {
+  field: string; correct: number; total: number; unresolved: number;
+  unresolved_samples: { test_id: string; reason: string | null }[]; misses: AccuracyMiss[];
+};
+export type Accuracy = {
+  _meta: { dataset: string; sample_size: number; model_calls_made: number; measured_at: string; policy_version: string;
+           match_rule: string };
+  models: { cached_extractions_by_model: Record<string, number>;
+            configured_chain: { source: string; text: string[]; vision: string[] } };
+  field_accuracy: AccuracyField[];
+  field_totals: { correct: number; total: number; unresolved: number };
+  decision_accuracy: {
+    rule: string; source: string; correct: number; total: number;
+    rows: { test_id: string; expected_status: string; expected_codes: string[]; actual_status: string;
+            actual_codes: string[]; correct: boolean }[];
+    mismatches: unknown[];
+  };
+  absorbed: { field: string; misses: number; code_path: string; mechanism: string;
+              evidence: { test_id: string; check: string; result: string; allowed: string | null;
+                          variance: string | null; reason_code: string | null }[] }[];
+  fallback_chain: { supported: boolean; quoted_line?: string; fallback_model?: string; samples_measured?: number;
+                    outcomes_reproduced?: number; samples_with_wrong_outcome?: string[]; spurious_code?: string;
+                    source: string; note?: string };
+};
+
+export const getAccuracy = () => getJson<Accuracy>("/api/accuracy");

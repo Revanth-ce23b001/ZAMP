@@ -11,9 +11,9 @@ from pathlib import Path
 from fastapi import Body, Depends, FastAPI, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 
-from app.config import ChainEntry, ConfigError, Settings, load_settings
+from app.config import BACKEND_DIR, ChainEntry, ConfigError, Settings, load_settings
 from app.db.cache_snapshot import load_snapshot_if_empty
 from app.db.connection import connect
 from app.db.migrate import migrate
@@ -283,6 +283,16 @@ def create_app(settings: Settings | None = None,
     @app.get("/api/policy")
     def policy_endpoint() -> dict:
         return views.policy_view(policy)
+
+    @app.get("/api/accuracy")
+    def accuracy_endpoint() -> Response:
+        """Measured accuracy (DEC-018): the committed backend/seed/extraction_accuracy.json, served
+        byte-for-byte. No computation and no database read, so it works on a freshly reset database."""
+        path = BACKEND_DIR / "seed" / "extraction_accuracy.json"
+        if not path.exists():
+            return JSONResponse(status_code=404, content={"error": "not_measured",
+                                                          "message": "Run python -m app.tools.measure_extraction_accuracy"})
+        return Response(content=path.read_bytes(), media_type="application/json")
 
     @app.get("/api/vendors")
     def list_vendors(conn: sqlite3.Connection = Depends(get_conn)) -> list[dict]:
