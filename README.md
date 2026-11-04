@@ -9,17 +9,33 @@ deterministic rules decide APPROVE, HOLD or REJECT; humans resolve exceptions.
 - Seed data: [`backend/seed/README_FIXTURES.md`](backend/seed/README_FIXTURES.md) (`fixtures-v1`, synthetic)
 - Wireframe (layout and navigation only; its sample data is placeholder): [`docs/wireframes/`](docs/wireframes/)
 
-**Status: Day 4.** Human review: override (approve / reject with bank verification and the commit
-recheck) and confirm-PO endpoints, a minimal review panel on the live screen for HOLD runs, and the
-remaining read endpoints (runs, audit, dashboard, policy) so Day 5 is frontend only.
-Day 3B: live processing in the browser over SSE. Day 3A summary: The full backend pipeline runs end to end: upload, sequential worker,
-Ingest, Extract (Gemini with an ordered fallback chain, cached by file hash, cache snapshot
-shipped for the samples), the pure rules engine for stages 3-7 (Validate, Vendor & Bank,
-Duplicate, PO Match, Decide) and `commit_approval`. All 15 samples produce exactly the PRD §13
-status and reason codes. No SSE, live view or business screens yet (Day 3B onward); the Next.js
-shell has navigation, Policy and Demo Reset pages.
+**Status: Day 6 (feature-complete for P0, deployed).** Live: https://clearmatch-ap.vercel.app
+(backend https://clearmatch-ap-backend.onrender.com). All 15 sample invoices produce exactly the
+PRD §13 outcomes. The full §17.3 run order works on the deployed link. Demo procedure:
+[`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md). Interviewer PDFs and the policy demo:
+[`docs/interviewer-kit/README.md`](docs/interviewer-kit/README.md).
 
 All data is synthetic. Money is stored as integer paise.
+
+## Deployed demo: read this first
+
+The backend runs on Render's free tier and the frontend on Vercel. Two hosting behaviours matter:
+
+- **Cold start.** The backend sleeps after about 15 minutes idle. The first request then takes 33–43 s (measured) while it wakes.
+- **The database resets on every wake, restart or redeploy (DEC-016).** The disk is temporary, so runs and the `demo_resets` history do not survive. Seed data, PO balances and the extraction cache (from `backend/seed/extraction_cache.json`) are reloaded at startup. The 15 sample invoices therefore re-run with no API call. Reset history is append-only within one server lifetime, not across restarts.
+
+**Warm-up before a demo:**
+1. Open https://clearmatch-ap-backend.onrender.com/api/health and wait for `{"status":"ok"}`.
+2. Open the app, click **Reset demo data**, type `RESET`.
+3. Keep the tab active (any request at least every 10 minutes).
+
+The GitHub keep-warm workflow helps but is not guaranteed: scheduled workflows can be delayed or skipped. Details and the
+mid-interview contingency: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md).
+
+**Live extraction is free-tier only (DEC-017).** Uncached PDFs go to `gemini-3.6-flash` (20 requests
+a day), falling back to `gemini-3.5-flash-lite` (500 a day) on 429, 5xx, timeout or connection
+errors. Render uses a Gemini key from a Google project nothing else uses. Measured on Render:
+41 s per invoice on the primary, 10 s on the fallback.
 
 ## Setup
 
@@ -48,8 +64,11 @@ Backend (`backend/.env`, gitignored; never put real keys in `.env.example`):
 | `UPLOADS_DIR` | no | Uploaded PDFs. Default `backend/storage/uploads`. |
 | `FRONTEND_ORIGIN` | no | The only origin allowed by CORS. Default `http://localhost:3000`. |
 | `LLM_PROVIDER`, `LLM_MODEL` | for extraction | `gemini` and a pinned model, e.g. `gemini-3.6-flash`. If unset, every run ends in ERROR ("provider not configured"). |
-| `GEMINI_API_KEY` | for extraction | Backend only; never sent to the browser, logged or stored. `ANTHROPIC_API_KEY` is reserved for the P1 second adapter. |
+| `GEMINI_API_KEY` | for extraction | Backend only; never sent to the browser, logged or stored. Free tier only; no paid or second-vendor provider is used (DEC-017). |
+| `EXTRACTION_TEXT_CHAIN`, `EXTRACTION_VISION_CHAIN` | no | Ordered fallback chains (DEC-013, DEC-017), e.g. `gemini:gemini-3.6-flash,gemini:gemini-3.5-flash-lite`. Fall through only on 429/5xx/timeout/connection errors. Default: the single `LLM_PROVIDER:LLM_MODEL`. |
+| `EXTRACTION_TIMEOUT_SECONDS` | no | Per-call provider timeout, default 120 (Render: 45). Each model keeps one retry before the next is tried. |
 | `EXTRACTION_CACHE` | no | `on` (default) reuses extractions by file hash (FR-014). `off` disables cache reads and writes. |
+| `CACHE_SNAPSHOT` | no | Cache snapshot loaded into an empty cache at startup (DEC-014). Default `backend/seed/extraction_cache.json`; `off` disables. |
 | `SAMPLES_DIR` | no | Sample PDFs listed by `GET /api/samples`. Default `backend/samples`. |
 
 Frontend (`frontend/.env.local`). Both are **server-only**; never give them a `NEXT_PUBLIC_` prefix:
@@ -78,7 +97,7 @@ Backend (from `backend/`):
 | Rules unit tests only | `python -m pytest tests/test_rules.py tests/test_commit.py -q` |
 | Warm the cache + export the snapshot (live calls) | `python -m app.tools.warm_cache` (`--only T06,T09 --force` to redo files) |
 | Check cached extractions against the printed values | `python -m app.tools.extraction_report` |
-| Live extraction tests (cost money, ~10 min) | `python -m pytest tests/test_extraction_live.py --run-live -s` |
+| Live extraction tests (use the free-tier quota, ~10 min) | `python -m pytest tests/test_extraction_live.py --run-live -s` |
 | Determinism only (3 live passes) | `python -m pytest tests/test_extraction_live.py --run-live -s -m determinism` |
 | Fixture tests only | `python -m pytest seed/test_fixtures.py -q` |
 
@@ -104,6 +123,7 @@ The test PDFs in `backend/samples/` are generated from `invoice-templates/manife
 | One-time setup | `python -m pip install -r backend/requirements.txt` then `python -m playwright install chromium` |
 | Generate all PDFs + `SHA256SUMS` | `python invoice-templates/generate.py` (`--only T-01,T-05` for a subset) |
 | Check rebuilds are byte-identical | `python invoice-templates/generate.py --check` |
+| Interviewer kit (live, uncached PDFs) | `python invoice-templates/generate.py --manifest invoice-templates/extra/manifest.json` |
 | Verify PDFs against the fixtures | `python invoice-templates/verify.py` (also run by `backend/tests/test_samples.py`) |
 
 Values the PRD does not give are recorded in `DECISIONS.md` DEC-012 and listed per invoice
@@ -117,7 +137,8 @@ Next.js route `/api/demo/reset`, which adds the token server-side and forwards t
 backend `POST /api/demo/reset`. The backend alone enforces the token, the typed
 confirmation and the rate limits (1 successful reset per 30 s; 5 rejected attempts per IP
 per 15 min). The reset is one atomic transaction; the extraction cache and the
-`demo_resets` history are never cleared. Wait at least 30 seconds between resets.
+`demo_resets` history are never cleared by a reset. On the free deployment both start empty or
+seeded again after any restart (DEC-016). Wait at least 30 seconds between resets.
 
 ## API
 
@@ -162,15 +183,20 @@ backend/
   storage/uploads/
   tests/
 frontend/
-  app/                     work-queue, pos, vendors, reports (placeholders), policy, demo-reset
+  app/                     work-queue, runs/[id] (decision), runs/[id]/live, pos, vendors, reports,
+                           policy, demo-reset
     api/demo/reset/route.ts  server-side reset proxy: adds the token and forwards; enforces nothing
-  components/              TopNav, Placeholder
-  lib/api.ts               server-only backend calls
+  components/              WorkQueue, LiveRun, decision/, ReviewPanel, PoTable, RunLauncher, TopNav
+  lib/client.ts            browser calls to the backend; lib/api.ts server-only calls
+  lib/display.ts           MIN_STAGE_DISPLAY_MS (live-screen pacing, display only)
   scripts/check-token-leak.mjs
-docs/wireframes/
+invoice-templates/          manifest + layouts -> backend/samples; extra/ -> docs/interviewer-kit/pdfs
+docs/                       DEMO_SCRIPT.md, MODEL_STRATEGY.md, interviewer-kit/, wireframes/
 ```
 
 ## Policy
 
 Every threshold is a prototype assumption (**[PA]**) in `backend/app/policy.yaml`, not a
-Zamp policy. Editing the file changes `policy_version` after a restart.
+Zamp policy. Editing the file changes `policy_version` after a restart. The **Policy** page
+shows every value, the 17 reason codes and what the prototype does not verify. To show a
+threshold change flipping a decision (T-08, A-10 1% → 30%), see the interviewer-kit README §4.

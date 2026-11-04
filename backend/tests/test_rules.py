@@ -69,6 +69,11 @@ def invoice(**over) -> InvoiceExtraction:
 def run(x, reference=None, policy=POLICY, today=TODAY, **kw):
     r = evaluate(x, reference or ref(), policy, today, **kw)
     EMITTED.update(r.reason_codes)
+    # PRD §20: every code is backed by evidence with expected, actual, variance and allowed.
+    for code in r.reason_codes:
+        rows = [e for e in r.evidence if e["reason_code"] == code]
+        assert rows, f"{code} has no evidence row"
+        assert all({"expected", "actual", "variance", "allowed"} <= set(e) for e in rows), code
     return r
 
 
