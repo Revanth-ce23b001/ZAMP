@@ -102,11 +102,11 @@ assumptions:
   # Invoice unit price may exceed PO unit price by at most this percentage; no lower limit (FR-066).
   A-10:
     name: unit_price_tolerance_pct
-    value: 30
+    value: 1
     lower_limit: null
     unit: percent over PO unit price
     label: "[PA]"
-    meaning: +30% over PO price; no limit under
+    meaning: +1% over PO price; no limit under
     source: Review C10
 
   # Cumulative approved qty + this invoice qty must not exceed PO line qty (FR-067).
