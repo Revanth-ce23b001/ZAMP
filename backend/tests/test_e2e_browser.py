@@ -200,7 +200,7 @@ def test_t01_runs_end_to_end_live_in_the_browser(browser):
 
     # Expanding a stage shows its evidence (fetched after the decision).
     page.locator('[data-stage="PO_MATCH"] button').click()
-    page.get_by_text("cumulative_po_value").wait_for(timeout=10000)
+    page.get_by_text("Cumulative value against PO").wait_for(timeout=10000)   # Day 9: display name, not the raw check id
     page.screenshot(path=str(SHOTS / "4_t01_po_match_evidence.png"), full_page=True)
 
     # The PDF preview is served from the backend.
@@ -651,4 +651,131 @@ def test_accuracy_lead_statement_is_derived_from_the_measurement(browser):
     assert page.get_by_test_id("acc-lead").inner_text() == (
         f"Subtotal was extracted incorrectly on 9 of {sub['total']} invoices. "
         f"{d['total'] - 1} of {d['total']} decisions were correct.")
+    page.close()
+
+
+# ======================================================================= Day 9: check-table readability
+
+import re  # noqa: E402  (Day 9 block)
+
+SERIALIZED = re.compile(r'[{}\[\]]|":"')
+
+
+def _all_sample_runs():
+    """Process every sample (already-processed files return their existing run) and wait for decisions."""
+    ids = {}
+    for pdf in sorted((BACKEND_DIR / "samples").glob("*.pdf")):
+        ids[pdf.name] = httpx.post(f"{API}/api/samples/{pdf.name}/process", timeout=30).json()["run_id"]
+    for name, rid in ids.items():
+        end = time.time() + 120
+        while httpx.get(f"{API}/api/runs/{rid}").json()["status"] not in ("DECIDED", "ERROR"):
+            assert time.time() < end, name
+            time.sleep(0.5)
+    return ids
+
+
+def test_check_tables_have_no_serialized_data_and_no_duplicate_rows(browser):
+    """Every check row on every sample: no JSON / dict / list text in any cell, no two identical rows within
+    a stage, every stage shown (including Not Checked ones), and exactly five columns."""
+    ids = _all_sample_runs()
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    for name, rid in ids.items():
+        detail = httpx.get(f"{API}/api/runs/{rid}").json()
+        page.goto(f"{WEB}/runs/{rid}")
+        page.get_by_test_id("decision-header").wait_for(timeout=20000)
+        page.get_by_role("tab", name="Evidence").click()
+        page.get_by_test_id("tab-evidence").wait_for()
+        stages = page.get_by_test_id("evidence-stage")
+        assert stages.count() == len(detail["stage_results"]), name
+        for i in range(stages.count()):
+            st = stages.nth(i)
+            rows = st.get_by_test_id("evidence-row")
+            texts = []
+            for j in range(rows.count()):
+                cells = rows.nth(j).locator("td").all_inner_texts()
+                assert len(cells) == 5, (name, cells)
+                for cell in cells:
+                    assert not SERIALIZED.search(cell), (name, st.get_attribute("data-stage"), cell)
+                texts.append(" | ".join(cells))
+            assert len(texts) == len(set(texts)), (name, st.get_attribute("data-stage"),
+                                                   [t for t in texts if texts.count(t) > 1])
+    page.close()
+
+
+def test_t04_po_match_rows_render_their_subjects(browser):
+    runs = {r["file_name"][:3]: r for r in httpx.get(f"{API}/api/runs").json()}
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    page.goto(f"{WEB}/runs/{runs['T04']['run_id']}")
+    page.get_by_test_id("decision-header").wait_for(timeout=20000)
+    page.get_by_role("tab", name="Evidence").click()
+    po = page.locator('[data-testid=evidence-stage][data-stage="PO_MATCH"]')
+    checks = po.get_by_test_id("evidence-row").locator("td:first-child").all_inner_texts()
+    assert "Candidate PO score — PO-1031" in checks and "Candidate PO score — PO-1036" in checks
+    assert "Unit price — Line 1, Laptop 14in i5" in checks
+    assert any(c.startswith("Cumulative quantity — Line 2") for c in checks)
+    headings = po.locator("tr.checks-group th").all_inner_texts()
+    assert [h.lower() for h in headings] == ["po identification", "line pairing", "unit price", "quantity", "po value"]
+    rows = po.get_by_test_id("evidence-row")
+    dump = [" | ".join(c.replace("\n", " / ") for c in rows.nth(i).locator("td").all_inner_texts()) for i in range(rows.count())]
+    (SHOTS / "21_t04_po_match.txt").write_text("\n".join(dump) + "\n", encoding="utf-8")
+    page.screenshot(path=str(SHOTS / "21_t04_evidence.png"), full_page=True)
+    page.close()
+
+
+def test_run_detail_has_no_horizontal_overflow(browser):
+    runs = {r["file_name"][:3]: r for r in httpx.get(f"{API}/api/runs").json()}
+    for width in (1280, 1440):
+        page = browser.new_page(viewport={"width": width, "height": 1000})
+        for t in ("T04", "T02", "T15"):
+            page.goto(f"{WEB}/runs/{runs[t]['run_id']}")
+            page.get_by_test_id("decision-header").wait_for(timeout=20000)
+            for label, testid in TABS:
+                page.get_by_role("tab", name=label).click()
+                page.get_by_test_id(testid).wait_for(timeout=10000)
+                over = page.evaluate("""() => {
+                    const doc = document.documentElement;
+                    const bad = [];
+                    if (doc.scrollWidth > doc.clientWidth) bad.push('page ' + doc.scrollWidth + '>' + doc.clientWidth);
+                    for (const el of document.querySelectorAll('main *')) {
+                        const cs = getComputedStyle(el);
+                        if (['auto', 'scroll'].includes(cs.overflowX) && el.scrollWidth > el.clientWidth + 1)
+                            bad.push((el.dataset.testid || el.tagName) + ' ' + el.scrollWidth + '>' + el.clientWidth);
+                    }
+                    // Result words are never truncated: each status pill fits inside its cell.
+                    for (const pill of document.querySelectorAll('[data-testid=check-table] td:last-child .status')) {
+                        const cell = pill.closest('td').getBoundingClientRect(), r = pill.getBoundingClientRect();
+                        if (r.right > cell.right + 0.5 || pill.scrollWidth > pill.clientWidth + 1) bad.push('truncated result: ' + pill.innerText);
+                    }
+                    // A composite's sub-line never wraps across four lines.
+                    for (const sub of document.querySelectorAll('[data-testid=observed-sub]')) {
+                        const lh = parseFloat(getComputedStyle(sub).lineHeight);
+                        if (sub.getBoundingClientRect().height > 3.5 * lh) bad.push('sub-line over 3 lines: ' + sub.innerText);
+                    }
+                    const side = document.querySelector('iframe[title="Invoice PDF"]').getBoundingClientRect();
+                    for (const tbl of document.querySelectorAll('[data-testid=check-table]')) {
+                        if (tbl.getBoundingClientRect().right > side.left + 1) bad.push('check table under the side panel');
+                    }
+                    return bad;
+                }""")
+                assert over == [], (width, t, label, over)
+        # The live screen's stage panels use the same table.
+        page.goto(f"{WEB}/runs/{runs['T04']['run_id']}/live")
+        page.locator('[data-stage="PO_MATCH"] button').click()
+        page.get_by_test_id("check-table").wait_for(timeout=20000)
+        assert page.evaluate("() => document.documentElement.scrollWidth <= document.documentElement.clientWidth"), width
+        clipped = page.evaluate("""() => [...document.querySelectorAll('[data-testid=check-table] td:last-child .status')]
+            .filter(p => p.getBoundingClientRect().right > p.closest('td').getBoundingClientRect().right + 0.5).map(p => p.innerText)""")
+        assert clipped == [], (width, clipped)
+        page.close()
+
+
+def test_check_rows_stack_below_1024px(browser):
+    runs = {r["file_name"][:3]: r for r in httpx.get(f"{API}/api/runs").json()}
+    page = browser.new_page(viewport={"width": 900, "height": 1000})
+    page.goto(f"{WEB}/runs/{runs['T04']['run_id']}")
+    page.get_by_test_id("decision-header").wait_for(timeout=20000)
+    page.get_by_role("tab", name="Evidence").click()
+    cell = page.get_by_test_id("evidence-row").first.locator("td").first
+    assert cell.evaluate("e => getComputedStyle(e).display") == "block"
+    assert page.evaluate("() => document.documentElement.scrollWidth <= document.documentElement.clientWidth")
     page.close()

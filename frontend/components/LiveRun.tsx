@@ -9,6 +9,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import Link from "next/link";
 import { eventsUrl, fileUrl, getRun, retryRun, type Evidence, type RunDetail } from "@/lib/client";
+import CheckTable from "@/components/CheckTable";
+import { checkRows } from "@/lib/checks";
 import { MIN_STAGE_DISPLAY_MS } from "@/lib/display";
 
 const STAGES = [
@@ -51,10 +53,6 @@ function duration(a?: string, b?: string): string {
   return ms < 1000 ? "<1 s" : `${(ms / 1000).toFixed(0)} s`;
 }
 
-function show(v: unknown): string {
-  if (v === null || v === undefined || v === "") return "—";
-  return typeof v === "object" ? JSON.stringify(v) : String(v);
-}
 
 export default function LiveRun({ runId, existing }: { runId: string; existing: boolean }) {
   const [rows, setRows] = useState(emptyRows);
@@ -247,22 +245,9 @@ export default function LiveRun({ runId, existing }: { runId: string; existing: 
                         <p className="mb-2">{detail.extraction.provider}/{detail.extraction.model}
                           {detail.extraction.cached && <span className="status s-nc ml-2"><span className="dot" aria-hidden />Cached extraction</span>}</p>
                       )}
-                      {ev.length === 0 ? <p className="text-ink-3">{r.summary ?? "No evidence yet."}</p> : (
-                        <table className="tbl text-xs">
-                          <thead>
-                            <tr><th>Check</th><th className="num">Expected</th><th className="num">Actual</th><th className="num">Variance</th><th className="num">Allowed</th><th>Result</th><th>Code</th></tr>
-                          </thead>
-                          <tbody>
-                            {ev.map((e, j) => (
-                              <tr key={j}>
-                                <td>{e.check}</td><td className="num">{show(e.expected)}</td>
-                                <td className="num">{show(e.actual)}</td><td className="num">{show(e.variance)}</td>
-                                <td className="num">{show(e.allowed)}</td><td>{e.result}</td>
-                                <td>{e.reason_code ? <span className="code">{e.reason_code}</span> : ""}</td>
-                              </tr>))}
-                          </tbody>
-                        </table>
-                      )}
+                      {ev.length === 0
+                        ? <p className="text-ink-3">{r.summary ?? "No checks recorded yet."}</p>
+                        : <CheckTable rows={checkRows(ev, detail)} stage={key} />}
                     </div>
                   )}
                 </div>

@@ -1,0 +1,43 @@
+{
+  "_comment": "Single map from the pipeline's internal check id to its display name and group (DEC-020). backend/tests/test_check_labels.py fails if the pipeline can emit a check id that is not covered here.",
+  "names": {
+    "required_fields": { "name": "Required fields present", "group": "Completeness" },
+    "invoice_number_corroboration": { "name": "Invoice number present", "group": "Completeness" },
+    "critical_field_confidence": { "name": "Extraction confidence", "group": "Extraction confidence" },
+    "invoice_date_plausible": { "name": "Invoice date plausible", "group": "Dates" },
+    "arithmetic_E1": { "name": "Line amounts add up to subtotal (E1)", "group": "Arithmetic" },
+    "arithmetic_E2": { "name": "Subtotal less discount equals taxable value (E2)", "group": "Arithmetic" },
+    "arithmetic_E3 CGST": { "name": "CGST equals rate × taxable value (E3)", "group": "Arithmetic" },
+    "arithmetic_E3 SGST": { "name": "SGST equals rate × taxable value (E3)", "group": "Arithmetic" },
+    "arithmetic_E3 IGST": { "name": "IGST equals rate × taxable value (E3)", "group": "Arithmetic" },
+    "arithmetic_E4": { "name": "Total reconciles (E4)", "group": "Arithmetic" },
+    "document_supported": { "name": "Supported document type and currency", "group": "Document" },
+    "tax_regime": { "name": "Tax regime matches vendor and buyer state", "group": "Document" },
+    "gstin_format": { "name": "GSTIN format", "group": "Vendor identity" },
+    "vendor_identified": { "name": "Vendor identified in master", "group": "Vendor identity" },
+    "gstin_matches_master": { "name": "GSTIN matches vendor master", "group": "Vendor identity" },
+    "vendor_status": { "name": "Vendor status", "group": "Vendor identity" },
+    "bank_details_match": { "name": "Bank details match vendor master", "group": "Bank details" },
+    "duplicate_search": { "name": "Duplicate search", "group": "Duplicate checks" },
+    "duplicate_confirmed": { "name": "Same vendor and invoice number", "group": "Duplicate checks" },
+    "duplicate_possible": { "name": "Same total, dates and lines", "group": "Duplicate checks" },
+    "duplicate_revision": { "name": "Revision of an earlier invoice", "group": "Duplicate checks" },
+    "duplicate_similar": { "name": "Similar invoice (note only)", "group": "Duplicate checks" },
+    "po_lookup": { "name": "PO lookup", "group": "PO identification" },
+    "po_candidate_score": { "name": "Candidate PO score", "group": "PO identification" },
+    "po_inferred": { "name": "PO reference", "group": "PO identification" },
+    "line_pairing": { "name": "Line pairing", "group": "Line pairing" },
+    "unit_price": { "name": "Unit price", "group": "Unit price" },
+    "cumulative_quantity": { "name": "Cumulative quantity", "group": "Quantity" },
+    "cumulative_po_value": { "name": "Cumulative value against PO", "group": "PO value" }
+  },
+  "patterns": [
+    { "match": "^arithmetic_line (\\d+)$", "name": "Line amount equals quantity × unit price", "group": "Arithmetic", "line_group": 1 }
+  ],
+  "group_order": {
+    "VALIDATE": ["Completeness", "Extraction confidence", "Dates", "Arithmetic", "Document"],
+    "VENDOR_BANK": ["Vendor identity", "Bank details"],
+    "DUPLICATE": ["Duplicate checks"],
+    "PO_MATCH": ["PO identification", "Line pairing", "Unit price", "Quantity", "PO value"]
+  }
+}

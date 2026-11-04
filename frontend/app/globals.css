@@ -109,6 +109,35 @@
   .tbl tbody tr:first-child td { border-top: 0; }
   .tbl-hover tbody tr:hover { background: var(--color-hover); }
 
+  /* Check table (DEC-020): five fixed columns that wrap instead of overflowing; stacked below 1024px. */
+  .checks { width: 100%; table-layout: fixed; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .checks thead th { background: var(--color-sunken); border-bottom: 1px solid var(--color-line); padding: 10px 12px;
+                     text-align: left; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+                     color: var(--color-ink-3); }
+  .checks thead th.num { text-align: right; }
+  .checks td { padding: 10px 12px; border-top: 1px solid var(--color-line); vertical-align: top;
+               overflow-wrap: anywhere; word-break: normal; }
+  .checks td.num { text-align: right; white-space: nowrap; }
+  .checks .status { white-space: nowrap; }
+  .checks tr.checks-group th { padding: 14px 12px 6px; text-align: left; font-size: 11px; font-weight: 600;
+                               letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-ink-2);
+                               border-top: 1px solid var(--color-line); background: var(--color-surface); }
+  .checks tbody:first-of-type tr.checks-group th { border-top: 0; }
+  @media (max-width: 1023.98px) {
+    .checks, .checks tbody, .checks tr, .checks td, .checks tr.checks-group th { display: block; width: 100%; }
+    .checks colgroup, .checks thead { display: none; }
+    .checks tr.checks-row { border-top: 1px solid var(--color-line); padding: 8px 0; }
+    .checks td { border-top: 0; padding: 4px 12px; text-align: left; }
+    .checks td.num { text-align: left; }
+    .checks td::before { content: attr(data-label); display: block; font-size: 11px; font-weight: 600;
+                         letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-ink-3); }
+  }
+
+  /* A .tbl that must fit its column: fixed layout, headers and cells wrap instead of overflowing. */
+  .tbl-fit { table-layout: fixed; }
+  .tbl-fit thead th { white-space: normal; }
+  .tbl-fit td { overflow-wrap: anywhere; }
+
   /* Notices */
   .notice { border-radius: var(--radius-card); border: 1px solid var(--color-line); padding: 12px 16px; font-size: 14px; }
   .notice-bad { background: var(--color-bad-bg); border-color: #fecaca; color: var(--color-bad); }

@@ -113,3 +113,18 @@ Suite after Day 8: 465 backend tests passed (18 opt-in skips), 16 fixture tests,
 ### Day 8B (presentation only)
 
 The measured values are unchanged (`backend/seed/extraction_accuracy.json` is byte-identical). `/accuracy` now leads with the field that has the most misses, read from the measurement (`test_accuracy_lead_statement_is_derived_from_the_measurement`). The value tile is split into "Discrepancy value flagged" and "Invoice value held for review", with no combined total (`test_codes_belong_to_exactly_one_bucket`, `test_one_invoice_can_contribute_to_both_buckets`, `test_an_invoice_can_contribute_to_only_one_bucket`, `test_max_not_sum_applies_within_each_bucket`, `test_endpoint_returns_no_combined_total`). Copy rules are enforced by `tests/test_wording.py`. README: `test_readme_leads_with_the_per_field_miss`.
+
+### Day 9 (check-table readability, presentation only)
+
+One shared check table for every stage (DEC-020): five columns with one kind of value each, plain-language names from one map, line, field and PO subjects, grouped sub-headings, and no serialized data. Measured values are unchanged (`extraction_accuracy.json` is byte-identical).
+
+| Item | Evidence |
+|---|---|
+| No JSON, dict, list or key=value text in any cell, across all 16 samples and every stage | Browser: `test_check_tables_have_no_serialized_data_and_no_duplicate_rows` |
+| No two identical rows within a stage; every stage shown, including Not Checked | Same test (also asserts five cells per row and one section per stage) |
+| Candidate rows name their PO (two genuine candidates, not a duplicate render) | `test_candidate_rows_line_up_with_the_candidate_list`; browser `test_t04_po_match_rows_render_their_subjects` |
+| Every check id the pipeline can emit has a display name and group | `test_every_literal_check_id_in_the_rules_has_a_name`, `test_formatted_check_ids_are_only_the_arithmetic_equations`, `test_every_check_id_emitted_on_the_samples_has_a_name`, `test_every_group_has_a_stage_order` |
+| No horizontal overflow at 1280px and 1440px, table never under the side panel, results never truncated, sub-lines at most three lines | Browser: `test_run_detail_has_no_horizontal_overflow` |
+| Rows stack as labelled blocks below 1024px | Browser: `test_check_rows_stack_below_1024px` |
+
+Suite after Day 9: 479 backend tests passed (23 opt-in skips), 16 fixture tests, 19 browser end-to-end tests.

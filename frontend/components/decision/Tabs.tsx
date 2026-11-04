@@ -6,7 +6,9 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import { CodeChip, ConfidenceChip, ResultChip } from "@/components/ui";
+import CheckTable from "@/components/CheckTable";
+import { ConfidenceChip, ResultChip } from "@/components/ui";
+import { checkRows, RESULT_WORD } from "@/lib/checks";
 import type { AuditLog, Evidence, RunDetail, VendorSide } from "@/lib/client";
 import { qty, rupees, show, when } from "@/lib/format";
 
@@ -261,7 +263,7 @@ export function PoMatchTab({ d }: { d: RunDetail }) {
       {p && (
         <div>
           <h3 className="card-title mb-2">Line diff</h3>
-          <table className="tbl" data-testid="po-lines">
+          <table className="tbl tbl-fit" data-testid="po-lines">
             <thead><tr>
               <th className={th}>Invoice line</th><th className={th}>PO line</th><th className={th}>Paired by</th>
               <th className={th}>Qty: PO / prev / this / excess</th><th className={th}>Unit price: PO / invoice / var / allowed</th><th className={th}>Result</th>
@@ -269,7 +271,7 @@ export function PoMatchTab({ d }: { d: RunDetail }) {
             <tbody>{p.lines.map((l) => (
               <tr key={l.invoice_line}>
                 <td className={td}>{l.invoice_line}. {show(l.description)}</td>
-                <td className={td + " whitespace-nowrap"}>{l.po_line_id ? <>{l.po_line_id} <span className="code">{l.po_item_code}</span></> : "no matching PO line"}</td>
+                <td className={td}>{l.po_line_id ? <>{l.po_line_id} <span className="code">{l.po_item_code}</span></> : "no matching PO line"}</td>
                 <td className={td}>{show(l.pairing)}</td>
                 <td className={td}>{l.quantity ? `${qty(l.quantity.po)} / ${qty(l.quantity.previously_approved)} / ${qty(l.quantity.this_invoice)} / ${qty(l.quantity.excess)}` : "—"}</td>
                 <td className={td}>{l.unit_price ? `${l.unit_price.po.display} / ${l.unit_price.invoice.display} / ${l.unit_price.variance_pct >= 0 ? "+" : ""}${l.unit_price.variance_pct}% / ${l.unit_price.allowed_pct}%` : "—"}</td>
@@ -286,33 +288,45 @@ export function PoMatchTab({ d }: { d: RunDetail }) {
 
 const STAGES = ["VALIDATE", "VENDOR_BANK", "DUPLICATE", "PO_MATCH"];
 const RESULTS = ["PASSED", "FAILED", "NEEDS_REVIEW", "NOT_CHECKED", "INFO"];
+const STAGE_NAME: Record<string, string> = {
+  INGEST: "Ingest", EXTRACT: "Extract", VALIDATE: "Validate", VENDOR_BANK: "Vendor & bank", DUPLICATE: "Duplicate",
+  PO_MATCH: "PO match", DECIDE: "Decide",
+};
 
-export function EvidenceTab({ evidence }: { evidence: Evidence[] }) {
+// Every stage, in pipeline order, through the shared check table (DEC-020). A stage with no check
+// rows (ingest, extract, decide, or a stage that was not checked) shows its recorded summary instead.
+export function EvidenceTab({ evidence, d }: { evidence: Evidence[]; d: RunDetail }) {
   const [stage, setStage] = useState("");
   const [result, setResult] = useState("");
-  const rows = useMemo(() => evidence.filter((e) => (!stage || e.stage === stage) && (!result || e.result === result)),
-                       [evidence, stage, result]);
+  const all = useMemo(() => checkRows(evidence, d), [evidence, d]);
+  const rows = all.filter((r) => (!stage || r.stage === stage) && (!result || r.resultKey === result));
+  const stages = d.stage_results.filter((s) => !stage || s.stage === stage);
   return (
-    <div className="space-y-3" data-testid="tab-evidence">
-      <div className="flex gap-2 text-sm">
+    <div className="space-y-5" data-testid="tab-evidence">
+      <div className="flex flex-wrap gap-2 text-sm">
         <select aria-label="Filter by stage" value={stage} onChange={(e) => setStage(e.target.value)} className="input">
-          <option value="">All stages</option>{STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
+          <option value="">All stages</option>{STAGES.map((s) => <option key={s} value={s}>{STAGE_NAME[s]}</option>)}
         </select>
         <select aria-label="Filter by result" value={result} onChange={(e) => setResult(e.target.value)} className="input">
-          <option value="">All results</option>{RESULTS.map((r) => <option key={r} value={r}>{r}</option>)}
+          <option value="">All results</option>{RESULTS.map((r) => <option key={r} value={r}>{RESULT_WORD[r]}</option>)}
         </select>
-        <span className="self-center text-ink-3">{rows.length} of {evidence.length}</span>
+        <span className="self-center text-ink-3 tabular-nums">{rows.length} of {all.length} checks</span>
       </div>
-      <table className="tbl text-xs">
-        <thead><tr>{["Stage", "Check", "Source fields", "Expected", "Actual", "Variance", "Allowed", "Result", "Code"].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
-        <tbody>{rows.map((e, i) => (
-          <tr key={i} data-testid="evidence-row">
-            <td className={td}>{e.stage}</td><td className={td}>{e.check}</td><td className={td}>{e.source_fields.join(", ")}</td>
-            <td className={td}>{show(e.expected)}</td><td className={td}>{show(e.actual)}</td><td className={td}>{show(e.variance)}</td>
-            <td className={td}>{show(e.allowed)}</td><td className={td}><ResultChip result={e.result} /></td>
-            <td className={td}>{e.reason_code ? <CodeChip code={e.reason_code} /> : ""}</td>
-          </tr>))}</tbody>
-      </table>
+      {stages.map((s) => {
+        const mine = rows.filter((r) => r.stage === s.stage);
+        if (result && mine.length === 0) return null;
+        return (
+          <section key={s.stage} data-testid="evidence-stage" data-stage={s.stage}>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <h3 className="card-title">{STAGE_NAME[s.stage] ?? s.stage}</h3>
+              <ResultChip result={s.status} />
+            </div>
+            {mine.length > 0
+              ? <div className="overflow-hidden rounded-card border border-line"><CheckTable rows={mine} stage={s.stage} rowTestId="evidence-row" /></div>
+              : <p className="text-[13px] text-ink-3">No checks recorded for this stage. {s.summary}</p>}
+          </section>
+        );
+      })}
     </div>
   );
 }

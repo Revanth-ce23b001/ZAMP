@@ -128,7 +128,7 @@ export default function DecisionView({ runId, existing }: { runId: string; exist
             {tab === "vendor" && <VendorBankTab d={d} />}
             {tab === "duplicates" && <DuplicatesTab d={d} />}
             {tab === "po" && <PoMatchTab d={d} />}
-            {tab === "evidence" && <EvidenceTab evidence={dec.evidence} />}
+            {tab === "evidence" && <EvidenceTab evidence={dec.evidence} d={d} />}
             {tab === "audit" && <AuditTab audit={audit} />}
           </div>
         </div>
