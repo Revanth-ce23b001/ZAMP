@@ -88,3 +88,24 @@ Every P0 item is built:
 1. **Audit tab override order: fixed.** Override records were ordered by `created_at` (second precision), then by a random ID, so two overrides in the same second could appear in the wrong order. It was seen once in five deployed walks (T-03's "not verified" attempt listed after the approval). They are now ordered by `created_at` then insertion order; regression test `test_overrides_in_the_same_second_keep_insertion_order` (failed before the fix, passes after).
 2. **Occasional slow page on the deployed link.** Twice in about 80 browser steps a page took over 20 s; it was not reproducible (API median 0.3 s, worst 1.2 s over 100 calls).
 3. **Live extraction latency.** gemini-3.6-flash took 41 s per invoice on Render (twice), above the 20 s NFR-10 target; flash-lite took 10 s.
+
+## Day 8 additions (measurement and value surface)
+
+Additive only: no rule, threshold, policy value, reason code, severity, schema or decision outcome changed. Both
+entries below are proposed by implementation and pending review (DEC-018, DEC-019).
+
+| Item | Status | Evidence |
+|---|---|---|
+| Ground truth from the PDFs, never from model output; unresolved fields shown, not guessed | Met | `backend/seed/extraction_ground_truth.json` (built by `app.tools.build_ground_truth`). `test_ground_truth_is_reproducible_and_keyed_by_sample_hash`, `test_every_unresolved_field_says_why` |
+| Per-field accuracy: exact match, exact paise, vendor name via the pipeline's normaliser, unresolved excluded | Met | `test_money_matches_only_in_exact_paise`, `test_tax_total_sums_printed_components_and_null_is_a_miss`, `test_vendor_name_uses_the_pipelines_normaliser`, `test_other_fields_need_an_exact_match`, `test_unresolved_fields_are_excluded_from_numerator_and_denominator` |
+| Measurement reproducible, zero model calls, committed file current | Met | `test_compare_is_deterministic`, `test_measurement_is_idempotent_and_the_committed_file_is_current`, `test_committed_measurement_numbers_are_consistent` |
+| Decision accuracy against PRD §13 | Met | `test_ground_truth_expected_decisions_match_the_scenario_tests`; 16 of 16 in `extraction_accuracy.json` |
+| "What absorbed the misses" names real code paths | Met | `test_every_absorbing_mechanism_names_a_real_function`; per-miss evidence taken from the pipeline's own evidence rows |
+| `GET /api/accuracy` serves the committed file as-is, also after a reset | Met | `test_accuracy_endpoint_serves_the_committed_file`, `test_accuracy_endpoint_works_after_a_demo_reset` |
+| `/accuracy` page renders both tables and the footer | Met | Browser test `test_accuracy_page_renders_both_tables_and_footer` |
+| README headline matches the measurement | Met | `test_readme_headline_matches_the_committed_measurement` |
+| Value flagged for review: one formula per code | Met | `test_po_balance_exceeded_is_cumulative_taxable_minus_ceiling`, `test_quantity_exceeds_po_is_excess_times_po_unit_price`, `test_unit_price_variance_counts_positive_terms_only`, `test_arithmetic_mismatch_is_printed_minus_computed_total`, `test_full_total_codes_contribute_the_invoice_total`, `test_every_other_code_contributes_zero`, `test_negative_overrun_is_zero_not_a_credit` |
+| Max, not sum, per invoice | Met | `test_max_not_sum_when_one_invoice_fires_balance_and_quantity`, `test_ties_break_deterministically_by_severity` |
+| An overridden invoice still contributes; empty state with no decided runs | Met | `test_pipeline_breakdown_and_overridden_invoice_still_counts`, `test_zero_decided_runs_is_an_empty_state`, `test_values_are_integer_paise_with_a_display_string` |
+
+Suite after Day 8: 465 backend tests passed (18 opt-in skips), 16 fixture tests, 14 browser end-to-end tests.

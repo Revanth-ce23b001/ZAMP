@@ -6,6 +6,7 @@ import sqlite3
 from app.policy import Policy
 from app.rules.common import Rules, paise
 from app.rules.reason_codes import REGISTRY
+from app.services.exposure import flagged_value
 from app.services.upload import display_number
 from app.utils.money import money
 
@@ -273,6 +274,7 @@ def dashboard(conn: sqlite3.Connection, policy: Policy) -> dict:
         "avg_processing_ms": round(sum(durations) / len(durations)) if durations else None,
         "recent_runs": runs[:10],
         "po_balances": po_balances(conn, policy),
+        "value_flagged_for_review": flagged_value(conn),            # DEC-019 (proposed, pending review)
     }
 
 

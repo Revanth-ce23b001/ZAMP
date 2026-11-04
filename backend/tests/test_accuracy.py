@@ -171,3 +171,11 @@ def test_accuracy_endpoint_works_after_a_demo_reset(api):
     r = api.get("/api/accuracy")
     assert r.status_code == 200
     check_schema(r.json())
+
+
+def test_readme_headline_matches_the_committed_measurement():
+    readme = (BACKEND_DIR.parent / "README.md").read_text(encoding="utf-8")
+    t, d = COMMITTED["field_totals"], COMMITTED["decision_accuracy"]
+    assert f"**{t['correct']} of {t['total']}** checked fields exact" in readme
+    assert f"**{d['correct']} of {d['total']}** correct" in readme
+    assert f"{t['unresolved']} fields the PDFs do not establish" in readme

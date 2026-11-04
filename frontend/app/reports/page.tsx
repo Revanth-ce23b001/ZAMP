@@ -6,12 +6,58 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import PoTable from "@/components/PoTable";
-import { getDashboard, type ApiError, type Dashboard } from "@/lib/client";
+import { CodeChip } from "@/components/ui";
+import { getDashboard, type ApiError, type Dashboard, type FlaggedValue } from "@/lib/client";
 import { seconds } from "@/lib/format";
 
 const SEVERITY_BAR: Record<string, string> = { REJECT: "bg-bad-dot", HOLD: "bg-hold-dot" };
 
 const TILE_DOT: Record<string, string> = { "m-approved": "s-ok", "m-hold": "s-hold", "m-rejected": "s-bad" };
+
+// Value flagged for review (DEC-019, proposed by implementation, pending review). Every figure comes
+// from the backend in integer paise with a display string; nothing is computed here.
+function FlaggedTile({ v }: { v: FlaggedValue }) {
+  return (
+    <div className="card mt-4" data-testid="flagged-value">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="micro">Value flagged for review</div>
+          <div className="mt-2 text-[27px] font-semibold leading-none tracking-tight tabular-nums" data-testid="flagged-total">
+            {v.decided_runs === 0 ? <span className="text-[15px] font-medium text-ink-3">No decided runs yet</span> : v.total.display}
+          </div>
+        </div>
+        {v.decided_runs > 0 && (
+          <div className="text-right text-[13px] text-ink-3 tabular-nums">
+            {v.invoices_flagged} of {v.decided_runs} decided invoice{v.decided_runs === 1 ? "" : "s"} with a valued discrepancy
+          </div>
+        )}
+      </div>
+      <p className="mt-3 text-[13px] text-ink-3" data-testid="flagged-footnote">
+        The value of discrepancies the rules surfaced for a person to resolve. It is not a financial gain or a recorded
+        outcome. {v.rule} {v.override_note} Synthetic demo dataset.
+      </p>
+      {v.breakdown.length > 0 && (
+        <details className="mt-3" data-testid="flagged-breakdown">
+          <summary className="cursor-pointer text-sm font-medium text-ink">Breakdown by invoice ({v.breakdown.length})</summary>
+          <div className="card-flush mt-3 overflow-x-auto">
+            <table className="tbl">
+              <thead><tr><th>Run</th><th>Invoice no.</th><th>Driving code</th><th className="num">Amount</th></tr></thead>
+              <tbody>
+                {v.breakdown.map((b) => (
+                  <tr key={b.run_id} data-testid="flagged-row" data-code={b.driving_code}>
+                    <td className="font-mono text-ink-2"><Link href={`/runs/${b.run_id}`} className="underline">{b.run_display}</Link></td>
+                    <td>{b.invoice_number ?? "—"}</td>
+                    <td><CodeChip code={b.driving_code} /></td>
+                    <td className="num font-medium">{b.amount.display}</td>
+                  </tr>))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
 
 export default function ReportsPage() {
   const [d, setD] = useState<Dashboard | null>(null);
@@ -54,6 +100,8 @@ export default function ReportsPage() {
         ({d.auto_approval_rate.denominator}). Errors and in-progress runs are not counted as processed
         {(d.by_status.ERROR ?? 0) > 0 && <> ({d.by_status.ERROR} in error)</>}.
       </p>
+
+      <FlaggedTile v={d.value_flagged_for_review} />
 
       <h2 className="section-title mt-8">Exceptions by reason</h2>
       <div className="card mt-3" data-testid="exceptions">

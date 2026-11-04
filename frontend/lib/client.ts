@@ -220,6 +220,18 @@ export type Dashboard = {
   avg_processing_ms: number | null;
   recent_runs: RunRow[];
   po_balances: PoBalance[];
+  value_flagged_for_review: FlaggedValue;
+};
+
+// DEC-019 (proposed, pending review): largest single discrepancy per decided invoice, in paise.
+export type FlaggedValue = {
+  decided_runs: number;
+  total: Money;
+  invoices_flagged: number;
+  breakdown: { run_id: string; run_display: string; invoice_number: string | null; driving_code: string;
+               amount: Money; contributions: Record<string, number> }[];
+  rule: string;
+  override_note: string;
 };
 
 export type Vendor = {

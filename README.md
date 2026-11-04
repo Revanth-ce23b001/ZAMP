@@ -3,6 +3,16 @@
 Prototype for the Zamp PS-1 invoice-processing case study. An LLM reads an invoice PDF;
 deterministic rules decide APPROVE, HOLD or REJECT; humans resolve exceptions.
 
+**The architecture in three sentences.** The model only transcribes each invoice into a fixed schema; it has no
+field through which to approve, hold or reject. Deterministic, versioned rules decide from that transcription plus the
+vendor master and purchase orders, so a field the model gets wrong is either caught by a rule or does not change the
+outcome. A person resolves every exception, and every decision records its evidence and the policy version behind it.
+
+**Measured, not claimed** (synthetic demo dataset, 16 sample invoices, zero model calls; DEC-018):
+- Field-level extraction: **154 of 161** checked fields exact (95.7%); 15 fields the PDFs do not establish are excluded, not guessed.
+- Decisions: **16 of 16** correct (status and the full set of reason codes, against PRD §13).
+- Full per-field and per-scenario tables: [`/accuracy`](https://clearmatch-ap.vercel.app/accuracy) (served from `backend/seed/extraction_accuracy.json`; regenerate with `python -m app.tools.measure_extraction_accuracy` from `backend/`).
+
 - Specification: [`ClearMatch_AP_PRD_v1.2_Final.md`](ClearMatch_AP_PRD_v1.2_Final.md) (PRD v1.2.1, authoritative)
 - Decision log: [`DECISIONS.md`](DECISIONS.md)
 - Day 1 brief: [`DAY1_FREEZE_AND_BUILD_BRIEF.md`](DAY1_FREEZE_AND_BUILD_BRIEF.md)
