@@ -2,7 +2,7 @@
 
 // The thinnest possible way to start a run (Day 3B): pick a sample or drop a PDF. Both go through
 // the backend's single upload path; an already-processed file opens its existing run (FR-004).
-// The full inbox arrives on a later day.
+// It sits at the top of the Work Queue (FR-002).
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";

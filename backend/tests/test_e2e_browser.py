@@ -98,6 +98,7 @@ def servers(tmp_path_factory):
     from tests.test_scenarios import SNAPSHOT
 
     tmp = tmp_path_factory.mktemp("e2e")
+    STATE["db"] = tmp / "e2e.db"
     node = shutil.which("node")
     next_bin = FRONTEND_DIR / "node_modules" / "next" / "dist" / "bin" / "next"
     if not node or not next_bin.exists():
@@ -181,6 +182,21 @@ def test_t01_runs_end_to_end_live_in_the_browser(browser):
     for s in STAGES:
         seq = [t[1] for t in transitions if t[0] == s]
         assert seq[0] == "PENDING" and seq[-1] == "PASSED", (s, seq)
+    # Day 5B display pacing: every rules stage now shows Running for at least the frontend minimum
+    # (350 ms), while the backend's recorded stage timings stay as fast as they were.
+    for s in ["VALIDATE", "VENDOR_BANK", "DUPLICATE", "PO_MATCH", "DECIDE"]:
+        ts = [t for t in transitions if t[0] == s]
+        assert any(t[1] == "RUNNING" for t in ts), (s, ts)
+        held = next(t[2] for t in ts if t[1] == "PASSED") - next(t[2] for t in ts if t[1] == "RUNNING")
+        assert held >= 340, (s, held)
+    events = httpx.get(f"{API}/api/runs/{run_id}/audit").json()["events"]
+    started = {e["payload"]["stage"]: e["created_at"] for e in events if e["type"] == "stage_started"}
+    done = {e["payload"]["stage"]: e["created_at"] for e in events if e["type"] == "stage_completed"}
+    from datetime import datetime
+    for s in ["VALIDATE", "VENDOR_BANK", "DUPLICATE", "PO_MATCH", "DECIDE"]:
+        if s in started and s in done:
+            gap = (datetime.fromisoformat(done[s]) - datetime.fromisoformat(started[s])).total_seconds()
+            assert gap < 0.35, (s, gap)                       # no backend delay was added
 
     # Expanding a stage shows its evidence (fetched after the decision).
     page.locator('[data-stage="PO_MATCH"] button').click()
@@ -374,3 +390,205 @@ def test_built_frontend_has_no_forbidden_labels(servers):
                 if label in text:
                     hits.append((str(f.relative_to(FRONTEND_DIR)), label))
     assert hits == []
+
+
+# ======================================================================= Day 5B screens
+
+def _rows(page):
+    page.get_by_test_id("runs-table").wait_for()
+    page.wait_for_function("() => !document.querySelector('[data-testid=skeleton-row]')")
+    return page.get_by_test_id("run-row")
+
+
+def _row_count(page, n):
+    page.wait_for_function(f"() => document.querySelectorAll('[data-testid=run-row]').length === {n}")
+
+
+def test_work_queue_kpis_and_filters(browser):
+    """FR-113: KPIs, status chips and the reason-code filter agree with GET /api/runs."""
+    runs = httpx.get(f"{API}/api/runs").json()
+    assert len(runs) >= 5
+    page = browser.new_page(viewport={"width": 1400, "height": 1100})
+    page.goto(f"{WEB}/work-queue")
+    _rows(page)
+    _row_count(page, len(runs))
+    for testid, status in (("kpi-approved", "APPROVE"), ("kpi-hold", "HOLD"), ("kpi-rejected", "REJECT")):
+        assert page.get_by_test_id(testid).inner_text() == str(sum(r["status"] == status for r in runs))
+    assert page.get_by_test_id("kpi-total").inner_text() == str(len(runs))
+    page.screenshot(path=str(SHOTS / "15_work_queue.png"), full_page=True)
+
+    for status in ("APPROVE", "HOLD", "REJECT"):
+        page.get_by_test_id(f"chip-{status}").click()
+        page.wait_for_url(f"**status={status}")
+        expected = sorted(r["run_id"] for r in runs if r["status"] == status)
+        _row_count(page, len(expected))
+        rows = page.get_by_test_id("run-row")
+        assert sorted(rows.nth(i).get_attribute("data-run-id") for i in range(rows.count())) == expected
+    page.get_by_test_id("chip-ALL").click()
+
+    # Reason-code filter, then combined with a status chip that excludes it.
+    page.get_by_test_id("reason-filter").select_option("CONFIRMED_DUPLICATE")
+    page.wait_for_url("**reason_code=CONFIRMED_DUPLICATE")
+    expected = [r["run_id"] for r in runs if "CONFIRMED_DUPLICATE" in r["reason_codes"]]
+    assert len(expected) == 1
+    _row_count(page, 1)
+    assert page.get_by_test_id("run-row").first.get_attribute("data-run-id") == expected[0]
+    page.get_by_test_id("chip-APPROVE").click()
+    page.get_by_test_id("empty-state").wait_for()
+    assert "No runs match these filters" in page.get_by_test_id("empty-state").inner_text()
+
+    # Deep link (as Reports uses), and a row click opens the decision screen.
+    page.goto(f"{WEB}/work-queue?reason_code=CONFIRMED_DUPLICATE")
+    _rows(page)
+    _row_count(page, 1)
+    page.get_by_test_id("run-row").first.click()
+    page.wait_for_url(f"**/runs/{expected[0]}")
+    page.get_by_test_id("decision-header").wait_for(timeout=20000)
+    page.close()
+
+
+def test_reset_shows_empty_queue_and_seed_balances(browser):
+    """Reset through the public Next.js route; the queue is empty and PO-1041 shows its four separate
+    seed values on both Reports and Purchase Orders."""
+    r = httpx.post(f"{WEB}/api/demo/reset", json={"confirm": "RESET", "requester_label": "e2e"}, timeout=60)
+    assert r.status_code == 200, r.text
+    page = browser.new_page(viewport={"width": 1400, "height": 1100})
+    page.goto(f"{WEB}/work-queue")
+    page.get_by_test_id("empty-state").wait_for(timeout=20000)
+    assert "No invoices processed yet" in page.get_by_test_id("empty-state").inner_text()
+    assert page.get_by_test_id("kpi-total").inner_text() == "0"
+
+    want = {"po_total": "₹3,00,000.00", "approved": "₹2,20,000.00", "remaining": "₹80,000.00",
+            "allowed_overrun": "₹1,000.00"}
+    for path in ("/reports", "/pos"):
+        page.goto(f"{WEB}{path}")
+        row = page.locator('[data-testid=po-row][data-po="PO-1041"]')
+        row.wait_for(timeout=20000)
+        got = {k: row.locator(f'[data-col="{k}"]').inner_text() for k in want}
+        assert got == want, (path, got)
+        page.screenshot(path=str(SHOTS / f"16_{path.strip('/')}_after_reset.png"), full_page=True)
+    page.close()
+
+
+def _db_metrics():
+    """The Reports figures, computed straight from SQLite rather than through the API."""
+    import sqlite3
+    conn = sqlite3.connect(STATE["db"])
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute("SELECT d.status, d.decided_by, d.reason_codes, l.total, r.duration_ms FROM decisions d "
+                        "JOIN runs r ON r.run_id = d.run_id LEFT JOIN invoice_ledger l ON l.run_id = d.run_id "
+                        "WHERE r.status = 'DECIDED'").fetchall()
+    conn.close()
+    n = len(rows)
+    count = lambda s: sum(r["status"] == s for r in rows)                       # noqa: E731
+    auto = sum(r["status"] == "APPROVE" and r["decided_by"] == "rules" for r in rows)
+    reasons: dict = {}
+    for r in rows:
+        for c in json.loads(r["reason_codes"]):
+            reasons[c] = reasons.get(c, 0) + 1
+    avg = round(sum(r["duration_ms"] for r in rows) / n)
+    return {"n": n, "approve": count("APPROVE"), "hold": count("HOLD"), "reject": count("REJECT"),
+            "rate": f"{auto * 100 / n:.1f}%", "hold_paise": sum(r["total"] or 0 for r in rows if r["status"] == "HOLD"),
+            "reasons": reasons, "avg_ms": avg}
+
+
+def test_reports_match_the_database_after_reset(browser):
+    """FR-111: after the reset, process T-01, T-03 and T-05; every Reports figure equals what the
+    database holds."""
+    from app.utils.money import money
+
+    for prefix in ("T01", "T03", "T05"):
+        name = next((BACKEND_DIR / "samples").glob(f"{prefix}_*.pdf")).name
+        run_id = httpx.post(f"{API}/api/samples/{name}/process", timeout=30).json()["run_id"]
+        end = time.time() + 60
+        while httpx.get(f"{API}/api/runs/{run_id}").json()["status"] not in ("DECIDED", "ERROR"):
+            assert time.time() < end
+            time.sleep(0.5)
+    db = _db_metrics()
+    assert db["n"] == 3
+
+    page = browser.new_page(viewport={"width": 1400, "height": 1100})
+    page.goto(f"{WEB}/reports")
+    page.get_by_test_id("m-processed").wait_for(timeout=20000)
+    text = lambda t: page.get_by_test_id(t).inner_text()                       # noqa: E731
+    assert text("demo-label") == "Demo dataset: synthetic invoices"
+    assert (text("m-processed"), text("m-approved"), text("m-hold"), text("m-rejected")) == \
+           (str(db["n"]), str(db["approve"]), str(db["hold"]), str(db["reject"]))
+    assert text("m-auto-rate") == db["rate"]
+    assert text("m-value-hold") == money(db["hold_paise"])["display"]
+    avg = db["avg_ms"]
+    assert text("m-avg-time") == (f"{avg} ms" if avg < 1000 else f"{avg / 1000:.1f} s")
+    rows = page.get_by_test_id("exception-row")
+    got = {rows.nth(i).get_attribute("data-code"): int(rows.nth(i).get_by_test_id("exception-count").inner_text())
+           for i in range(rows.count())}
+    assert got == db["reasons"]
+    page.screenshot(path=str(SHOTS / "17_reports.png"), full_page=True)
+
+    # A reason opens the Work Queue filtered by it; a PO opens it filtered by that PO.
+    code = next(iter(db["reasons"]))
+    page.locator(f'[data-testid=exception-row][data-code="{code}"]').click()
+    page.wait_for_url(f"**/work-queue?reason_code={code}")
+    _rows(page)
+    _row_count(page, db["reasons"][code])
+    page.goto(f"{WEB}/reports")
+    page.locator('[data-testid=po-row][data-po="PO-1042"] a').click()
+    page.wait_for_url("**/work-queue?po_number=PO-1042")
+    page.get_by_test_id("po-filter").wait_for()
+    _rows(page)
+    _row_count(page, len(httpx.get(f"{API}/api/runs", params={"po_number": "PO-1042"}).json()))
+    page.close()
+
+
+def test_vendors_page_and_response_have_no_contact_details(browser):
+    vendors = fixture_records("vendors.json")
+    secrets = PHONES + ACCOUNTS + [v["trusted_contact_name"] for v in vendors] + \
+        [v["trusted_contact_email"] for v in vendors if v.get("trusted_contact_email")]
+    body = httpx.get(f"{API}/api/vendors").text
+    for s in secrets:
+        assert s not in body
+    for key in ("phone", "email", "trusted_contact"):
+        assert key not in body
+
+    page = browser.new_page(viewport={"width": 1400, "height": 1000})
+    page.goto(f"{WEB}/vendors")
+    page.get_by_test_id("vendor-row").first.wait_for(timeout=20000)
+    assert page.get_by_test_id("vendor-row").count() == len(vendors)
+    caption = page.get_by_test_id("no-contact-caption")
+    assert caption.is_visible() and "No trusted-contact details here" in caption.inner_text()
+    html = page.content()
+    for s in secrets:
+        assert s not in html
+    page.screenshot(path=str(SHOTS / "18_vendors.png"), full_page=True)
+    page.close()
+
+
+def test_policy_page_renders_every_key_and_code(browser):
+    import yaml
+
+    from app.rules.reason_codes import REGISTRY
+    data = yaml.safe_load((BACKEND_DIR / "app" / "policy.yaml").read_text(encoding="utf-8"))
+    keys = list(data["assumptions"]) + list(data["other_assumptions"]) + [f"p1_rules.{k}" for k in data["p1_rules"]]
+    assert len(REGISTRY) == 17
+
+    page = browser.new_page(viewport={"width": 1400, "height": 1000})
+    page.goto(f"{WEB}/policy")
+    page.get_by_test_id("assumptions-table").wait_for(timeout=20000)
+    shown = page.get_by_test_id("policy-key")
+    assert sorted(shown.nth(i).get_attribute("data-key") for i in range(shown.count())) == sorted(keys)
+    for k, entry in data["assumptions"].items():
+        row = page.locator(f'[data-testid=policy-key][data-key="{k}"]').inner_text()
+        assert entry["meaning"] in row and "[PA]" in row, k
+    codes = page.get_by_test_id("reason-code")
+    assert sorted(codes.nth(i).get_attribute("data-code") for i in range(codes.count())) == sorted(REGISTRY)
+    for code, rc in REGISTRY.items():
+        row = page.locator(f'[data-testid=reason-code][data-code="{code}"]').inner_text()
+        assert rc.severity.value in row and f"{rc.stage} · " in row, code
+    assert page.get_by_test_id("not-verified").locator("tbody tr").count() == 5
+    scope = page.get_by_test_id("scope").inner_text()
+    for part in ("Two-way match", "INR", "GST", "Sequential"):
+        assert part in scope
+    assert page.get_by_test_id("policy-version").inner_text() == httpx.get(f"{API}/api/meta").json()["policy_version"]
+    assert "DEC-016" in page.get_by_test_id("reset-history-note").inner_text()
+    assert "350 ms" in page.get_by_test_id("stepper-note").inner_text()
+    page.screenshot(path=str(SHOTS / "19_policy.png"), full_page=True)
+    page.close()

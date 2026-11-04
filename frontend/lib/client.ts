@@ -192,3 +192,55 @@ export type AuditLog = {
 export async function getAudit(runId: string): Promise<AuditLog> {
   return asJson(await fetch(`${BACKEND}/api/runs/${runId}/audit`, { cache: "no-store" }));
 }
+
+// ---------------------------------------------------------------- read models (FR-111..FR-117)
+
+export type RunRow = {
+  run_id: string; run_number: number; run_display: string; file_name: string;
+  run_status: string;            // QUEUED | PROCESSING | DECIDED | ERROR
+  status: string;                // the decision when decided, else the run state
+  vendor_id: string | null; vendor_name: string | null; invoice_number: string | null;
+  total: Money | null; reason_codes: string[]; matched_po: string | null; decided_by: string | null;
+  committed: boolean; created_at: string; completed_at: string | null; duration_ms: number | null;
+  cached: boolean | null; error_message: string | null;
+};
+
+export type PoBalance = {
+  po_number: string; vendor_id: string; vendor_name: string; po_date: string; currency: string; line_count: number;
+  po_total: Money; approved: Money; remaining: Money; allowed_overrun: Money; ceiling: Money; pct_used: number;
+};
+
+export type Dashboard = {
+  label: string;
+  invoices_processed: number;
+  by_status: Record<string, number>;
+  auto_approval_rate: { value: number; display: string; numerator: number; denominator: number };
+  value_on_hold: Money;
+  exceptions_by_reason: { code: string; count: number; severity: string }[];
+  avg_processing_ms: number | null;
+  recent_runs: RunRow[];
+  po_balances: PoBalance[];
+};
+
+export type Vendor = {
+  vendor_id: string; legal_name: string; gstin: string; state_code: string; state_name: string; status: string;
+  bank_account_masked: string; ifsc: string; bank_display?: string;
+};
+
+export type PolicyEntry = { id?: string; name: string; value: unknown; unit?: string; label?: string;
+                            meaning?: string; source?: string; [k: string]: unknown };
+export type Policy = {
+  policy_version: string; policy_version_short: string;
+  assumptions: PolicyEntry[]; other_assumptions: PolicyEntry[]; p1_rules: Record<string, boolean>;
+  reason_codes: { code: string; severity: string; stage: number; stage_key: string; stage_status: string;
+                  template: string; next_action: string; priority: number }[];
+  does_not_verify: { not_verified: string; instead: string }[];
+  scope: Record<string, string>;
+};
+
+const getJson = async <T>(path: string): Promise<T> => asJson(await fetch(`${BACKEND}${path}`, { cache: "no-store" }));
+export const listRuns = () => getJson<RunRow[]>("/api/runs");
+export const getDashboard = () => getJson<Dashboard>("/api/dashboard");
+export const listPos = () => getJson<PoBalance[]>("/api/pos");
+export const listVendors = () => getJson<Vendor[]>("/api/vendors");
+export const getPolicy = () => getJson<Policy>("/api/policy");

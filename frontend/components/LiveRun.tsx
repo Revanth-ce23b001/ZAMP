@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import Link from "next/link";
 import { eventsUrl, fileUrl, getRun, retryRun, type Evidence, type RunDetail } from "@/lib/client";
+import { MIN_STAGE_DISPLAY_MS } from "@/lib/display";
 
 const STAGES = [
   ["INGEST", "Ingest"], ["EXTRACT", "Extract"], ["VALIDATE", "Validate"], ["VENDOR_BANK", "Vendor & Bank"],
@@ -85,39 +86,75 @@ export default function LiveRun({ runId, existing }: { runId: string; existing: 
 
   useEffect(() => {
     ended.current = false;
+    let closed = false;
     const es = new EventSource(eventsUrl(runId));
-    const on = (name: string, fn: (d: any) => void) =>
-      es.addEventListener(name, (e) => fn(JSON.parse((e as MessageEvent).data)));
     const patch = (k: StageKey, r: Partial<Row>) => setRows((prev) => ({ ...prev, [k]: { ...prev[k], ...r } }));
+
+    // Display pacing (frontend only): events are applied strictly in arrival order, and a row that
+    // went to Running is held there for at least MIN_STAGE_DISPLAY_MS before its final status shows.
+    // Replayed history animates the same way. The recorded timestamps shown come from the backend.
+    const runningSince: Partial<Record<StageKey, number>> = {};
+    const queue: [string, any][] = [];
+    let pumping = false;
+    const running = (k: StageKey, r: Partial<Row>) => { runningSince[k] = performance.now(); patch(k, { ...r, status: "RUNNING" }); };
+    const settle = async (k: StageKey) => {
+      const since = runningSince[k];
+      delete runningSince[k];
+      const wait = since === undefined ? 0 : MIN_STAGE_DISPLAY_MS - (performance.now() - since);
+      if (wait > 0) await new Promise((res) => setTimeout(res, wait));
+    };
+
+    const apply = async (name: string, d: any) => {
+      switch (name) {
+        case "run": setHeader(d); if (d.status !== "QUEUED") setQueued(null); break;
+        case "queued": setQueued(d.position); break;
+        case "retry":
+          setRows(emptyRows()); setDecision(null); setCommitMsg(null); setError(null); setDetail(null); break;
+        case "stage_started": setQueued(null); running(d.stage, { startedAt: d.at }); break;
+        case "stage_completed":
+          await settle(d.stage);
+          patch(d.stage, { status: d.status as Status, summary: d.summary, endedAt: d.at });
+          break;
+        case "decision":
+          setDecision({ status: d.status, reason_codes: d.reason_codes });
+          if (d.status === "APPROVE") running("COMMIT", { startedAt: d.at });
+          else patch("COMMIT", { status: "NOT_CHECKED", summary: "Only approved invoices consume PO balance" });
+          break;
+        case "commit":
+          await settle("COMMIT");
+          setCommitMsg(d.message);
+          patch("COMMIT", { status: d.outcome === "committed" ? "PASSED" : "FAILED", summary: d.message, endedAt: d.at });
+          if (d.outcome === "blocked") setDecision((prev) => prev && { status: "HOLD", reason_codes: [...prev.reason_codes, ...d.codes] });
+          break;
+        case "error":
+          if (d.stage) await settle(d.stage);
+          setError(d.message);
+          if (d.stage) patch(d.stage, { status: "ERROR", summary: d.message });
+          break;
+        case "end": ended.current = true; setReconnecting(false); refresh(); break;
+      }
+    };
+    const pump = async () => {
+      if (pumping) return;
+      pumping = true;
+      while (queue.length && !closed) {
+        const [name, d] = queue.shift()!;
+        await apply(name, d);
+      }
+      pumping = false;
+    };
 
     es.onopen = () => setReconnecting(false);
     es.onerror = () => { if (!ended.current) setReconnecting(true); };
-    on("run", (d) => { setHeader(d); if (d.status !== "QUEUED") setQueued(null); });
-    on("queued", (d) => setQueued(d.position));
-    on("retry", () => {
-      setRows(emptyRows()); setDecision(null); setCommitMsg(null); setError(null); setDetail(null);
-    });
-    on("stage_started", (d) => { setQueued(null); patch(d.stage, { status: "RUNNING", startedAt: d.at }); });
-    on("stage_completed", (d) => patch(d.stage, {
-      status: d.status as Status, summary: d.not_checked_reason ? `${d.summary}` : d.summary, endedAt: d.at,
-    }));
-    on("decision", (d) => {
-      setDecision({ status: d.status, reason_codes: d.reason_codes });
-      patch("COMMIT", d.status === "APPROVE"
-        ? { status: "RUNNING", startedAt: d.at }
-        : { status: "NOT_CHECKED", summary: "Only approved invoices consume PO balance" });
-    });
-    on("commit", (d) => {
-      setCommitMsg(d.message);
-      patch("COMMIT", { status: d.outcome === "committed" ? "PASSED" : "FAILED", summary: d.message, endedAt: d.at });
-      if (d.outcome === "blocked") setDecision((prev) => prev && { status: "HOLD", reason_codes: [...prev.reason_codes, ...d.codes] });
-    });
-    on("error", (d) => {
-      setError(d.message);
-      if (d.stage) patch(d.stage, { status: "ERROR", summary: d.message });
-    });
-    on("end", () => { ended.current = true; setReconnecting(false); es.close(); refresh(); });
-    return () => { ended.current = true; es.close(); };
+    for (const name of ["run", "queued", "retry", "stage_started", "stage_completed", "decision", "commit", "error", "end"]) {
+      es.addEventListener(name, (e) => {
+        const d = JSON.parse((e as MessageEvent).data);
+        if (name === "end") es.close();          // stop the stream now; the queue finishes the display
+        queue.push([name, d]);
+        pump();
+      });
+    }
+    return () => { closed = true; ended.current = true; es.close(); };
   }, [runId, connection, refresh]);
 
   async function onRetry() {

@@ -31,3 +31,13 @@ export const DECIDED_BY: Record<string, string> = {
   rules_after_review: "Rules after reviewer PO confirmation",
   reviewer: "Reviewer override",
 };
+
+export function seconds(ms: number | null | undefined): string {
+  if (ms === null || ms === undefined) return "—";
+  return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`;
+}
+
+// Inbox status labels (FR-113).
+export const STATUS_LABEL: Record<string, string> = {
+  APPROVE: "Approved", HOLD: "On hold", REJECT: "Rejected", ERROR: "Error", QUEUED: "Queued", PROCESSING: "Processing",
+};
