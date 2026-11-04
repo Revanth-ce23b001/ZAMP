@@ -237,7 +237,8 @@ def run_audit(conn: sqlite3.Connection, run_id: str) -> dict | None:
                "created_at": r["created_at"]}
               for r in conn.execute("SELECT * FROM audit_events WHERE run_id = ? ORDER BY event_id", (run_id,))]
     overrides = []
-    for r in conn.execute("SELECT * FROM overrides WHERE run_id = ? ORDER BY created_at, override_id", (run_id,)):
+    # created_at has one-second precision; rowid (insertion order, single writer) breaks ties.
+    for r in conn.execute("SELECT * FROM overrides WHERE run_id = ? ORDER BY created_at, rowid", (run_id,)):
         o = dict(r)
         o["codes_overridden"] = json.loads(o["codes_overridden"])
         o["bank_verification"] = json.loads(o["bank_verification"]) if o["bank_verification"] else None

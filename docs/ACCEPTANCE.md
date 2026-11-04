@@ -3,7 +3,7 @@
 Status per item: **Met**, **Partly met**, **Not met** or **N/A**. Test names are in
 `backend/tests/` unless stated otherwise.
 
-Suite at the time of this pass: 434 backend tests passed, 17 skipped (live-provider and browser
+Suite at the time of this pass: 435 backend tests passed, 17 skipped (live-provider and browser
 opt-ins); 13/13 browser end-to-end; 16/16 fixture tests; token-leak check passes.
 
 ## PRD §20 implementation readiness checklist
@@ -85,6 +85,6 @@ Every P0 item is built:
 
 ## Known issues found during the Day 6 pass
 
-1. **Audit tab override order.** Override records are ordered by `created_at` (second precision), then by a random ID. Two overrides in the same second can appear in the wrong order; seen once in five deployed walks (T-03's "not verified" attempt listed after the approval). Display only; not yet fixed.
+1. **Audit tab override order: fixed.** Override records were ordered by `created_at` (second precision), then by a random ID, so two overrides in the same second could appear in the wrong order. It was seen once in five deployed walks (T-03's "not verified" attempt listed after the approval). They are now ordered by `created_at` then insertion order; regression test `test_overrides_in_the_same_second_keep_insertion_order` (failed before the fix, passes after).
 2. **Occasional slow page on the deployed link.** Twice in about 80 browser steps a page took over 20 s; it was not reproducible (API median 0.3 s, worst 1.2 s over 100 calls).
 3. **Live extraction latency.** gemini-3.6-flash took 41 s per invoice on Render (twice), above the 20 s NFR-10 target; flash-lite took 10 s.

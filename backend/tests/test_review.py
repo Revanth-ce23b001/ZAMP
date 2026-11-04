@@ -347,3 +347,24 @@ def test_no_contact_or_account_leaks_in_read_endpoints(api):
     assert "50100045671234" not in "".join(texts.values())                           # T-25a's printed account
     # the run carrying BANK_DETAILS_MISMATCH is the one place the contact appears (FR-044)
     assert api.get(f"/api/runs/{t03}").json()["trusted_contact"]["phone"] in ("+91 98400 11223", "+91 94480 67215")
+
+
+def test_overrides_in_the_same_second_keep_insertion_order(api, monkeypatch):
+    """Day 6 bug: overrides were ordered by created_at (second precision) then by the random
+    override_id, so a "not verified" attempt and the approval made in the same second could be
+    listed the wrong way round on the Audit tab."""
+    import uuid as uuid_mod
+
+    from app.services import review as review_mod
+
+    rid = run(api, "T03")
+    monkeypatch.setattr(review_mod, "now_iso", lambda: "2026-11-04T10:00:00+05:30")
+    ids = iter(["f" * 32, "0" * 32])                     # the second override sorts first by id
+    monkeypatch.setattr(review_mod.uuid, "uuid4", lambda: uuid_mod.UUID(next(ids)))
+    not_verified = {**VERIFIED, "outcome": "not verified"}
+    approve(api, rid, ["BANK_DETAILS_MISMATCH"], not_verified)
+    approve(api, rid, ["BANK_DETAILS_MISMATCH"], VERIFIED)
+    overrides = api.get(f"/api/runs/{rid}/audit").json()["overrides"]
+    assert [o["created_at"] for o in overrides] == ["2026-11-04T10:00:00+05:30"] * 2
+    assert [o["bank_verification"]["outcome"] for o in overrides] == ["not verified", "verified"]
+    assert [o["commit_result"] for o in overrides] == ["not_applicable", "committed"]
