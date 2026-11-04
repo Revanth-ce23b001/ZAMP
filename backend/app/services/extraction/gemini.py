@@ -24,12 +24,13 @@ MAX_ATTEMPTS = 2          # first call + one retry (FR-016, FR-018)
 class GeminiAdapter:
     provider = "gemini"
 
-    def __init__(self, api_key: str, model: str, retry_pause: float = RETRY_PAUSE_SECONDS):
+    def __init__(self, api_key: str, model: str, retry_pause: float = RETRY_PAUSE_SECONDS,
+                 timeout_ms: int = TIMEOUT_MS):
         from google import genai
         from google.genai import types
 
         self._types = types
-        self._client = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=TIMEOUT_MS))
+        self._client = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=timeout_ms))
         self.model = model
         self._retry_pause = retry_pause
 

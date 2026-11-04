@@ -21,8 +21,13 @@ of trusting a guess.
 
 | Path | Chain today | Notes |
 |---|---|---|
-| Text (14 of 15 samples) | `gemini:gemini-3.6-flash` | Text layer read by pdfplumber, sent as text |
-| Vision (scans, T-05) | `gemini:gemini-3.6-flash` | Pages rendered at 200 DPI, sent as images |
+| Text (14 of 15 samples) | `gemini:gemini-3.6-flash` → `gemini:gemini-3.5-flash-lite` | Text layer read by pdfplumber, sent as text |
+| Vision (scans, T-05) | `gemini:gemini-3.6-flash` → `gemini:gemini-3.5-flash-lite` | Pages rendered at 200 DPI, sent as images |
+
+The fallback is set on Render (DEC-017) and costs nothing: on the free tier each model has its own
+daily quota (20 requests per model per day on the project we tested). It is a weaker reader:
+re-extracting all 15 samples with it reproduced 13 of 15 outcomes. T-03 and T-06 gained a spurious
+`LINE_ITEM_UNMATCHED`, which holds an invoice; it never approved one wrongly.
 
 **Why Gemini Flash:**
 - It is hosted, so there is no GPU to run, and it has a free tier.
@@ -44,8 +49,8 @@ availability failures while building:
 
 The chain falls through on 429, 5xx, timeouts and connection errors only. A schema failure stops
 the chain, because that is a prompt defect that must surface, not be hidden by a second model.
-Extra entries are commented in `.env.example` until their credentials exist: another Gemini
-model on the same key with its own quota, and a second provider.
+The deployed backend runs on a Gemini key from a Google project used only by Render, so local
+testing never spends the demo's quota. No paid or second-vendor provider is used (DEC-017).
 
 **Why the demo makes zero provider calls.** The extractions for the 15 prepared samples ship as
 a regenerated snapshot, `backend/seed/extraction_cache.json`. The UI shows the "Cached

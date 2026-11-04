@@ -18,7 +18,7 @@ def adapter_factory(settings: Settings) -> Callable[[ChainEntry], ExtractionAdap
         if entry.provider == "gemini":
             from app.services.extraction.gemini import GeminiAdapter
 
-            adapter = GeminiAdapter(key, entry.model)
+            adapter = GeminiAdapter(key, entry.model, timeout_ms=int(settings.extraction_timeout_seconds * 1000))
         elif entry.provider == "anthropic":
             raise ExtractionError("the anthropic adapter is P1 and not built yet", kind=CONFIG)
         else:

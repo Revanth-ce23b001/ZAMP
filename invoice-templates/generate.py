@@ -3,6 +3,8 @@
     python invoice-templates/generate.py            # generate all, write SHA256SUMS
     python invoice-templates/generate.py --only T-01,T-05
     python invoice-templates/generate.py --check    # regenerate to a temp dir; fail if any hash differs
+    python invoice-templates/generate.py --manifest invoice-templates/extra/manifest.json
+                                                    # the interviewer kit (not cached, not in backend/samples)
 
 HTML (Jinja2 layout) -> PDF via Playwright/Chromium -> rewritten by PyMuPDF with fixed metadata
 and no new /ID, so the same manifest gives byte-identical PDFs on the same machine and
@@ -33,8 +35,8 @@ BUILD = HERE / "build"
 TAX_ORDER = (("cgst", "CGST"), ("sgst", "SGST"), ("igst", "IGST"))
 
 
-def load_manifest() -> dict:
-    return json.loads(MANIFEST.read_text(encoding="utf-8"))
+def load_manifest(path: Path = MANIFEST) -> dict:
+    return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
 # ---------------------------------------------------------------- rendering
@@ -176,9 +178,10 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--only", help="comma-separated test IDs")
     ap.add_argument("--check", action="store_true", help="regenerate to a temp dir and compare hashes")
+    ap.add_argument("--manifest", default=str(MANIFEST), help="manifest file (default: the sample set)")
     args = ap.parse_args()
 
-    manifest = load_manifest()
+    manifest = load_manifest(args.manifest)
     meta = manifest["_meta"]
     invoices = manifest["invoices"]
     if args.only:

@@ -60,6 +60,9 @@ class Settings:
     # Ordered fallback chains (DEC-013). Default: the single LLM_PROVIDER:LLM_MODEL entry.
     text_chain: tuple[ChainEntry, ...] = ()
     vision_chain: tuple[ChainEntry, ...] = ()
+    # Per-call provider timeout. Each chain entry keeps its one retry (DEC-013), so a hung model
+    # costs up to 2 x this before the next entry is tried.
+    extraction_timeout_seconds: float = 120.0
     # Shipped cache snapshot loaded when extraction_cache is empty (DEC-014). None disables.
     cache_snapshot: Path | None = BACKEND_DIR / "seed" / "extraction_cache.json"
 
@@ -122,5 +125,6 @@ def load_settings(require_reset_token: bool = True) -> Settings:
         anthropic_api_key=_env("ANTHROPIC_API_KEY"),
         gemini_api_key=_env("GEMINI_API_KEY"),
         samples_dir=Path(_env("SAMPLES_DIR") or BACKEND_DIR / "samples"),
+        extraction_timeout_seconds=float(_env("EXTRACTION_TIMEOUT_SECONDS") or 120),
         extraction_cache_enabled=(_env("EXTRACTION_CACHE") or "on").lower() not in ("off", "0", "false", "no"),
     )

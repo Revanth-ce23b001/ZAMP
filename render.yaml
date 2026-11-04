@@ -24,3 +24,11 @@ services:
         value: gemini
       - key: LLM_MODEL
         value: gemini-3.6-flash
+      # DEC-017: free-tier chain. GEMINI_API_KEY above must come from a Google project used ONLY
+      # by this service; each model in the chain has its own free daily quota on that project.
+      - key: EXTRACTION_TEXT_CHAIN
+        value: gemini:gemini-3.6-flash,gemini:gemini-3.5-flash-lite
+      - key: EXTRACTION_VISION_CHAIN
+        value: gemini:gemini-3.6-flash,gemini:gemini-3.5-flash-lite
+      - key: EXTRACTION_TIMEOUT_SECONDS
+        value: "45"

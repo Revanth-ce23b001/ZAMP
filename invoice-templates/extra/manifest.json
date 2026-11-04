@@ -1,0 +1,100 @@
+{
+  "_meta": {
+    "manifest_version": 1,
+    "description": "Interviewer kit (PRD §17.5, Day 6). NOT part of the rehearsed sample set: these PDFs are not in backend/samples and not in the extraction cache, so uploading one always runs a LIVE provider extraction. L-01 proves the live path; B-01 and B-02 are clean templates to edit on request (change a price, a quantity or a bank detail, then regenerate). All data is synthetic.",
+    "sources": "backend/seed fixtures-v1 (vendors, POs, bank details on the vendor master); same printing conventions as DEC-012.",
+    "buyer": "Demo Buyer (synthetic), Karnataka (29)",
+    "output_dir": "docs/interviewer-kit/pdfs",
+    "pdf_metadata_date": "D:20261102000000+05'30'"
+  },
+  "invoices": [
+    {
+      "test_id": "L-01",
+      "file": "L01_live_unknown_vendor_DOS-2026-118.pdf",
+      "layout": "banded",
+      "vendor": {
+        "vendor_id": null,
+        "legal_name": "Deccan Office Supplies",
+        "gstin": "29AAGCD7412K1Z5",
+        "state_code": "29",
+        "state_name": "Karnataka"
+      },
+      "invoice_number": "DOS/2026/118",
+      "invoice_date": "2026-10-31",
+      "po_reference": null,
+      "lines": [
+        {"item_code": null, "description": "A4 copier paper ream", "quantity": 20, "uom": "ream", "unit_price": "280.00", "amount": "5600.00"},
+        {"item_code": null, "description": "Whiteboard marker pack", "quantity": 5, "uom": "pack", "unit_price": "150.00", "amount": "750.00"}
+      ],
+      "subtotal": "6350.00",
+      "discount": null,
+      "taxable_value": "6350.00",
+      "tax": {"cgst": {"rate": 9, "amount": "571.50"}, "sgst": {"rate": 9, "amount": "571.50"}, "igst": null},
+      "other_charges": [],
+      "round_off": null,
+      "total": "7493.00",
+      "bank": null,
+      "expect": {"outcome": "HOLD", "reason_codes": ["VENDOR_NOT_FOUND"], "vendor_in_master": false, "po": "none"}
+    },
+    {
+      "test_id": "B-01",
+      "file": "B01_template_godavari_GC-TPL-0001.pdf",
+      "layout": "classic",
+      "vendor": {
+        "vendor_id": "V007",
+        "legal_name": "Godavari Chemicals Ltd",
+        "gstin": "37AADCG3456S1Z9",
+        "state_code": "37",
+        "state_name": "Andhra Pradesh"
+      },
+      "invoice_number": "GC/TPL/0001",
+      "invoice_date": "2026-10-31",
+      "po_reference": "PO-1048",
+      "lines": [
+        {"item_code": "SOLV-ACE", "description": "Acetone 200L drum", "quantity": 4, "uom": "drum", "unit_price": "25000.00", "amount": "100000.00"}
+      ],
+      "subtotal": "100000.00",
+      "discount": null,
+      "taxable_value": "100000.00",
+      "tax": {"cgst": null, "sgst": null, "igst": {"rate": 18, "amount": "18000.00"}},
+      "other_charges": [],
+      "round_off": null,
+      "total": "118000.00",
+      "bank": {"account_number": "917020038813317", "ifsc": "UTIB0003317"},
+      "expect": {"outcome": "APPROVE", "reason_codes": [], "po": "explicit",
+                 "edit_ideas": ["unit_price 25000.00 -> 26000.00 (and amounts): UNIT_PRICE_VARIANCE (HOLD)",
+                                "quantity 4 -> 9: QUANTITY_EXCEEDS_PO and PO_BALANCE_EXCEEDED (HOLD)",
+                                "bank ifsc -> HDFC0001111: BANK_DETAILS_MISMATCH (HOLD)"]}
+    },
+    {
+      "test_id": "B-02",
+      "file": "B02_template_prestige_PWR-TPL-0001.pdf",
+      "layout": "compact",
+      "vendor": {
+        "vendor_id": "V002",
+        "legal_name": "Prestige Workspace Rentals LLP",
+        "gstin": "29AAKFP5678K1Z2",
+        "state_code": "29",
+        "state_name": "Karnataka"
+      },
+      "invoice_number": "PWR/TPL/0001",
+      "invoice_date": "2026-10-31",
+      "po_reference": "PO-1049",
+      "lines": [
+        {"item_code": "HK-SVC", "description": "Housekeeping", "quantity": 1, "uom": "month", "unit_price": "18000.00", "amount": "18000.00"}
+      ],
+      "subtotal": "18000.00",
+      "discount": null,
+      "taxable_value": "18000.00",
+      "tax": {"cgst": {"rate": 9, "amount": "1620.00"}, "sgst": {"rate": 9, "amount": "1620.00"}, "igst": null},
+      "other_charges": [],
+      "round_off": null,
+      "total": "21240.00",
+      "bank": {"account_number": "000405512378", "ifsc": "ICIC0002345"},
+      "expect": {"outcome": "APPROVE", "reason_codes": [], "po": "explicit",
+                 "edit_ideas": ["total 21240.00 -> 21250.00: ARITHMETIC_MISMATCH (HOLD)",
+                                "vendor gstin -> 29AAKFP5678K1Z9: VENDOR_NOT_FOUND (HOLD)",
+                                "remove po_reference: PO is inferred from the lines (PO_INFERRED, HOLD)"]}
+    }
+  ]
+}
