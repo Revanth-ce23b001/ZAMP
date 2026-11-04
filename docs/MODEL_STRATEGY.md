@@ -21,12 +21,12 @@ of trusting a guess.
 
 | Path | Chain today | Notes |
 |---|---|---|
-| Text (14 of 15 samples) | `gemini:gemini-3.6-flash` → `gemini:gemini-3.5-flash-lite` | Text layer read by pdfplumber, sent as text |
+| Text (15 of 16 samples) | `gemini:gemini-3.6-flash` → `gemini:gemini-3.5-flash-lite` | Text layer read by pdfplumber, sent as text |
 | Vision (scans, T-05) | `gemini:gemini-3.6-flash` → `gemini:gemini-3.5-flash-lite` | Pages rendered at 200 DPI, sent as images |
 
 The fallback is set on Render (DEC-017) and costs nothing: on the free tier each model has its own
 daily quota (20 requests per model per day on the project we tested). It is a weaker reader:
-re-extracting all 15 samples with it reproduced 13 of 15 outcomes. T-03 and T-06 gained a spurious
+re-extracting the original 15 samples with it reproduced 13 of 15 outcomes. T-03 and T-06 gained a spurious
 `LINE_ITEM_UNMATCHED`, which holds an invoice; it never approved one wrongly.
 
 **Why Gemini Flash:**
@@ -35,7 +35,7 @@ re-extracting all 15 samples with it reproduced 13 of 15 outcomes. T-03 and T-06
 - It reads page images for the scan branch.
 - It runs at temperature 0 with a fixed seed and minimal thinking.
 
-On the 15 samples, every load-bearing field was exact, including the vision-path T-05. The known
+On the original 15 samples, every load-bearing field was exact, including the vision-path T-05; T-17, added on Day 7, extracted with every field exact. The known
 miss is the vendor GSTIN on two layouts whose vendor block shares a text line with the buyer.
 There the exact vendor *name* still identifies the vendor (FR-030), and the miss is recorded
 rather than hidden.

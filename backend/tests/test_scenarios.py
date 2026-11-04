@@ -32,6 +32,7 @@ EXPECTED = [
     ("T12", "HOLD", ["LINE_ITEM_UNMATCHED"], None),
     ("T15", "HOLD", ["ARITHMETIC_MISMATCH"], None),
     ("T16", "HOLD", ["POSSIBLE_DUPLICATE"], None),
+    ("T17", "HOLD", ["PO_INFERRED"], None),
     ("T18", "REJECT", ["VENDOR_BLOCKED"], None),
     ("T25a", "HOLD", ["BANK_DETAILS_MISMATCH"], None),
     ("T25b", "APPROVE", [], None),
@@ -135,3 +136,13 @@ def test_every_check_has_evidence_and_no_full_account_numbers(outcomes):
         blob = d["evidence"] + d["summary"]
         for acct in accounts:
             assert acct not in blob, sample
+
+
+def test_t17_two_plausible_po_candidates_within_10_points(outcomes):
+    """OD-1: PO-1031 and PO-1036 both fit; their scores are within 10 points, so both are flagged plausible."""
+    cands = {c["po_number"]: c for c in json.loads(outcomes["T17"]["decision"]["po_candidates"])}
+    assert set(cands) == {"PO-1031", "PO-1036"}
+    assert all(c["plausible"] for c in cands.values())
+    assert abs(cands["PO-1031"]["score"] - cands["PO-1036"]["score"]) <= 10
+    assert outcomes["T17"]["decision"]["matched_po"] in cands            # the top suggestion, as for T-04
+    assert not outcomes["T17"]["decision"]["committed"]                  # inferred: nothing consumed until confirmed

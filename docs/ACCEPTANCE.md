@@ -3,7 +3,7 @@
 Status per item: **Met**, **Partly met**, **Not met** or **N/A**. Test names are in
 `backend/tests/` unless stated otherwise.
 
-Suite at the time of this pass: 435 backend tests passed, 17 skipped (live-provider and browser
+Suite at the time of this pass (updated Day 7): 438 backend tests passed, 17 skipped (live-provider and browser
 opt-ins); 13/13 browser end-to-end; 16/16 fixture tests; token-leak check passes.
 
 ## PRD §20 implementation readiness checklist
@@ -27,9 +27,9 @@ opt-ins); 13/13 browser end-to-end; 16/16 fixture tests; token-leak check passes
 ### Test inputs
 | Item | Status | Evidence |
 |---|---|---|
-| PDFs for every §13 test that needs a file | **Not met** | 15 PDFs: T-01–T-09, T-12, T-15, T-16, T-18, T-25a, T-25b. T-10 and T-22–T-24 reuse them; T-26–T-28 are API tests that build their own inputs. **No PDF** for T-11, T-13, T-17, T-19, T-20, T-29 (P0) and T-14, T-21 (P1). The P0 ones are covered at rule level: T-11 `test_e2_with_discount_and_e4_with_charges_and_round_off`, T-13 `test_low_confidence_total_holds_even_when_arithmetic_reconciles`, T-17 `test_t17_two_plausible_within_10_points`, T-19 `test_missing_invoice_number_is_hold_and_duplicate_not_checked`, T-20 `test_explicit_po_of_another_vendor_is_po_not_found_with_suggestion`, T-29 `test_duplicate_tiers` (HOLD original → `POSSIBLE_DUPLICATE`) |
+| PDFs for every §13 test that needs a file | **Not met** | 16 PDFs: T-01–T-09, T-12, T-15, T-16, T-17 (added Day 7), T-18, T-25a, T-25b. T-10 and T-22–T-24 reuse them; T-26–T-28 are API tests that build their own inputs. **No PDF** for T-11, T-13, T-19, T-20, T-29 (P0) and T-14, T-21 (P1). The P0 ones are covered at rule level: T-11 `test_e2_with_discount_and_e4_with_charges_and_round_off`, T-13 `test_low_confidence_total_holds_even_when_arithmetic_reconciles`, T-19 `test_missing_invoice_number_is_hold_and_duplicate_not_checked`, T-20 `test_explicit_po_of_another_vendor_is_po_not_found_with_suggestion`, T-29 `test_duplicate_tiers` (HOLD original → `POSSIBLE_DUPLICATE`) |
 | At least 4 layouts and 1 photographed scan | Met | Layouts classic, banded, compact, bill; T-05 is an image-only scan (`test_only_t05_is_classified_as_scan`) |
-| §13 expected results in automated scenario tests | Partly met | `test_scenarios.py` asserts exact status and codes for all 15 sample files; the scenarios without PDFs are rule- or API-level tests (above) |
+| §13 expected results in automated scenario tests | Partly met | `test_scenarios.py` asserts exact status and codes for all 16 sample files; the scenarios without PDFs are rule- or API-level tests (above) |
 
 ### Pipeline
 | Item | Status | Evidence |
@@ -81,7 +81,7 @@ Every P0 item is built:
 - **Decision:** the decision engine, codes, severity, stage statuses, evidence and summaries; idempotent `commit_approval` with recheck.
 - **Review and reporting:** review workflow, override audit, confirm PO and override blocking; dashboard metrics; audit trail; inbox; SSE live view; reset; policy page.
 
-**P0 gaps:** none in functionality. The gap is test inputs: six P0 scenarios have no sample PDF (above).
+**P0 gaps:** none in functionality. The gap is test inputs: five P0 scenarios have no sample PDF (above). T-17 was added on Day 7 (`test_t17_two_plausible_po_candidates_within_10_points`).
 
 ## Known issues found during the Day 6 pass
 

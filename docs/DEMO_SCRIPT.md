@@ -2,14 +2,14 @@
 
 - Live app: https://clearmatch-ap.vercel.app
 - Backend health check: https://clearmatch-ap-backend.onrender.com/api/health
-- Test PDFs: `backend/samples/` (15 rehearsed, cached) and `docs/interviewer-kit/pdfs/` (3 live). Index: [`interviewer-kit/README.md`](interviewer-kit/README.md)
+- Test PDFs: `backend/samples/` (16 rehearsed, cached) and `docs/interviewer-kit/pdfs/` (3 live). Index: [`interviewer-kit/README.md`](interviewer-kit/README.md)
 
 ## 1. Warm-up
 
 The backend runs on Render's free tier. Two behaviours matter:
 
 - **Cold start.** After about 15 minutes without traffic the server sleeps. The first request then waits for it to wake (measured 33–43 s).
-- **Reset on wake (DEC-016).** Every wake-up, restart or redeploy starts a fresh database: seed data back, no runs, empty reset history. The extraction cache reloads from the committed snapshot, so the 15 rehearsed invoices still need no API call.
+- **Reset on wake (DEC-016).** Every wake-up, restart or redeploy starts a fresh database: seed data back, no runs, empty reset history. The extraction cache reloads from the committed snapshot, so the 16 rehearsed invoices still need no API call.
 
 The GitHub keep-warm job pings every 10 minutes when GitHub runs it. Its schedule is best effort; on 3–4 Nov 2026 it went over an hour without firing. Do not rely on it.
 
@@ -56,6 +56,7 @@ Backups, as asked:
 | T-07 | HOLD `POSSIBLE_REVISION` | A revision suffix holds; it does not reject |
 | T-08 | HOLD `UNIT_PRICE_VARIANCE` | +25% vs +1%. Also the policy demo: change A-10 to 30% and it approves (interviewer-kit README §4) |
 | T-09 | HOLD `VENDOR_NOT_FOUND` | Later stages "Not checked: vendor not identified" |
+| T-17 | HOLD `PO_INFERRED` | No PO printed; PO-1031 and PO-1036 both score 100, so both are flagged plausible (OD-1). The reviewer must choose; nothing is consumed until they confirm |
 | T-10 | Drop the T-01 PDF again | Opens the existing run with a banner: no new run, no API call, balance unchanged |
 | T-25 | (a) HOLD bank mismatch; (b) APPROVE; override (a) | The override is blocked at commit: 50 + 60 > 100 units. HOLD with `QUANTITY_EXCEEDS_PO`, `PO_BALANCE_EXCEEDED` added |
 

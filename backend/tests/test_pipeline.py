@@ -157,7 +157,7 @@ def test_run_created_queued_with_sequential_numbers(api, monkeypatch):
 def test_samples_listed_and_processed_through_upload_path(api):
     listed = api.get("/api/samples").json()
     assert sorted(s["name"] for s in listed) == [p.name for p in SAMPLES]
-    assert len(listed) == 15
+    assert len(listed) == 16
     r = api.post(f"/api/samples/{T05.name}/process")
     assert r.status_code == 201 and r.json()["existing"] is False
     wait(api)
@@ -223,7 +223,7 @@ def test_runs_are_processed_one_at_a_time_in_order(settings):
 def test_only_t05_is_classified_as_scan():
     policy = load_policy()
     methods = {p.name: ingest(p, policy.assumption("A-24"), 200).pages.method for p in SAMPLES}
-    assert len(methods) == 15
+    assert len(methods) == 16
     assert [n for n, m in methods.items() if m == "vision"] == [T05.name]
     assert all(m == "text" for n, m in methods.items() if n != T05.name)
 

@@ -2,7 +2,7 @@
 
 Everything here is synthetic. Two folders of PDFs are ready to drag onto the Work Queue's drop zone.
 
-## 1. The rehearsed set: `backend/samples/` (15 PDFs)
+## 1. The rehearsed set: `backend/samples/` (16 PDFs)
 
 These are served from the extraction cache (DEC-014). They make **no API call**, decide in about a
 second, and show a "Cached extraction" badge. They also appear in the **Run sample** picker.
@@ -21,6 +21,7 @@ second, and show a "Cached extraction" badge. They also appear in the **Run samp
 | `T12_unmatched_line_INV-SL-0493.pdf` | T-12 | HOLD `LINE_ITEM_UNMATCHED` | A line that pairs with no PO line |
 | `T15_arithmetic_mismatch_INV-SL-0497.pdf` | T-15 | HOLD `ARITHMETIC_MISMATCH` | Printed total off by exactly ₹1,000 |
 | `T16_possible_duplicate_INV-GC-0927.pdf` | T-16 | HOLD `POSSIBLE_DUPLICATE` | Same vendor, total and lines within 7 days, different number |
+| `T17_multiple_po_candidates_NIT-1131.pdf` | T-17 | HOLD `PO_INFERRED` | No PO printed; 2 × LAP-14 + 2 × MON-24 fit both PO-1031 and PO-1036 (score 100 each), so both are shown as plausible (OD-1) |
 | `T18_blocked_vendor_MLG-1187.pdf` | T-18 | REJECT `VENDOR_BLOCKED` | Blocked vendor |
 | `T25a_bank_mismatch_override_KE-2026-0312.pdf` | T-25 (a) | HOLD `BANK_DETAILS_MISMATCH` | Run before (b); its override is later blocked at commit |
 | `T25b_consumes_balance_KE-2026-0313.pdf` | T-25 (b) | APPROVE | Consumes PO-1045, so overriding (a) afterwards stays HOLD with `QUANTITY_EXCEEDS_PO`, `PO_BALANCE_EXCEEDED` |

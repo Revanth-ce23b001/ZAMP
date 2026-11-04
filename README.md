@@ -10,7 +10,7 @@ deterministic rules decide APPROVE, HOLD or REJECT; humans resolve exceptions.
 - Wireframe (layout and navigation only; its sample data is placeholder): [`docs/wireframes/`](docs/wireframes/)
 
 **Status: Day 6 (feature-complete for P0, deployed).** Live: https://clearmatch-ap.vercel.app
-(backend https://clearmatch-ap-backend.onrender.com). All 15 sample invoices produce exactly the
+(backend https://clearmatch-ap-backend.onrender.com). All 16 sample invoices produce exactly the
 PRD §13 outcomes. The full §17.3 run order works on the deployed link. Demo procedure:
 [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md). Interviewer PDFs and the policy demo:
 [`docs/interviewer-kit/README.md`](docs/interviewer-kit/README.md).
@@ -22,7 +22,7 @@ All data is synthetic. Money is stored as integer paise.
 The backend runs on Render's free tier and the frontend on Vercel. Two hosting behaviours matter:
 
 - **Cold start.** The backend sleeps after about 15 minutes idle. The first request then takes 33–43 s (measured) while it wakes.
-- **The database resets on every wake, restart or redeploy (DEC-016).** The disk is temporary, so runs and the `demo_resets` history do not survive. Seed data, PO balances and the extraction cache (from `backend/seed/extraction_cache.json`) are reloaded at startup. The 15 sample invoices therefore re-run with no API call. Reset history is append-only within one server lifetime, not across restarts.
+- **The database resets on every wake, restart or redeploy (DEC-016).** The disk is temporary, so runs and the `demo_resets` history do not survive. Seed data, PO balances and the extraction cache (from `backend/seed/extraction_cache.json`) are reloaded at startup. The 16 sample invoices therefore re-run with no API call. Reset history is append-only within one server lifetime, not across restarts.
 
 **Warm-up before a demo:**
 1. Open https://clearmatch-ap-backend.onrender.com/api/health and wait for `{"status":"ok"}`.

@@ -278,6 +278,29 @@
       "provenance": {"sources": ["PRD §13.2 T-16", "PRD §9.10.6"], "proposed": ["bank"]}
     },
     {
+      "test_id": "T-17",
+      "file": "T17_multiple_po_candidates_NIT-1131.pdf",
+      "layout": "classic",
+      "vendor": {"vendor_id": "V004", "legal_name": "Nandi IT Solutions Pvt Ltd", "gstin": "29AAECN7788P1Z1", "state_code": "29", "state_name": "Karnataka"},
+      "invoice_number": "NIT/1131",
+      "invoice_date": "2026-10-30",
+      "po_reference": null,
+      "lines": [
+        {"item_code": "LAP-14", "description": "Laptop 14in i5", "quantity": 2, "uom": "pcs", "unit_price": "62000.00", "amount": "124000.00"},
+        {"item_code": "MON-24", "description": "Monitor 24in", "quantity": 2, "uom": "pcs", "unit_price": "11500.00", "amount": "23000.00"}
+      ],
+      "subtotal": "147000.00",
+      "discount": null,
+      "taxable_value": "147000.00",
+      "tax": {"cgst": {"rate": 9, "amount": "13230.00"}, "sgst": {"rate": 9, "amount": "13230.00"}, "igst": null},
+      "other_charges": [],
+      "round_off": null,
+      "total": "173460.00",
+      "bank": {"account_number": "31245678901", "ifsc": "SBIN0040211"},
+      "expect": {"vendor_in_master": true, "bank": "match", "po": "none", "pair_against": "PO-1036", "duplicate": "none"},
+      "provenance": {"sources": ["PRD §13.2 T-17", "Day 7 brief (date 30 Oct 2026)"], "proposed": ["invoice_number", "tax", "total", "bank"]}
+    },
+    {
       "test_id": "T-18",
       "file": "T18_blocked_vendor_MLG-1187.pdf",
       "layout": "compact",
