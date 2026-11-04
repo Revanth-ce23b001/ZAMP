@@ -28,6 +28,8 @@ class ExtractionResult:
     model: str
     usage: Usage
     attempts: int
+    # Why each earlier attempt failed when a retry then succeeded, e.g. ["availability: 503 ..."].
+    retried_after: list[str] = field(default_factory=list)
 
 
 # Failure kinds. Only AVAILABILITY failures fall through to the next provider in the chain.

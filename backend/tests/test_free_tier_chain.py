@@ -171,3 +171,32 @@ def test_scanned_invoice_primary_429_served_by_fallback(settings):
         dec = rows(c, "SELECT status, reason_codes, decided_by FROM decisions WHERE run_id = ?", r["run_id"])[0]
         assert dec["decided_by"] == "rules"
         assert (dec["status"], json.loads(dec["reason_codes"])) == ("REJECT", ["CONFIRMED_DUPLICATE"])
+
+
+# ---------- observability: why a successful extraction needed a retry ----------
+
+def test_retry_reason_recorded_when_second_attempt_succeeds():
+    overload = genai_errors.ServerError(503, {"error": {"code": 503, "status": "UNAVAILABLE"}})
+    for first, kind in ((overload, "availability"), (ok("{not json"), "schema")):
+        _, get = chain([first, ok(T01_JSON)], [])
+        res = run_chain((PRIMARY, FALLBACK), get, TEXT)
+        assert res.attempts == 2 and res.model == "gemini-3.6-flash"
+        assert len(res.retried_after) == 1 and res.retried_after[0].startswith(kind + ":")
+    _, get = chain([ok(T01_JSON)], [])
+    assert run_chain((PRIMARY, FALLBACK), get, TEXT).retried_after == []
+
+
+def test_retry_reason_reaches_the_audit_log(settings):
+    from tests.test_pipeline import T01, rows, upload
+
+    s = dataclasses.replace(settings, text_chain=(PRIMARY, FALLBACK), gemini_api_key="fake-key")
+    overload = genai_errors.ServerError(503, {"error": {"code": 503, "status": "UNAVAILABLE"}})
+    adapters = {PRIMARY: gemini(PRIMARY, [overload, ok(T01_JSON)]), FALLBACK: gemini(FALLBACK, [])}
+    with TestClient(create_app(s, adapter_for=adapters.__getitem__)) as c:
+        c.settings = s
+        r = upload(c, T01.read_bytes()).json()
+        assert c.app.state.worker.wait_idle(30)
+        events = [json.loads(e["payload"]) for e in rows(
+            c, "SELECT payload FROM audit_events WHERE run_id = ? AND type = 'extraction_called'", r["run_id"])]
+        assert len(events) == 1 and events[0]["ok"] is True and events[0]["attempts"] == 2
+        assert events[0]["retried_after"][0].startswith("availability: provider call failed: ServerError: 503")

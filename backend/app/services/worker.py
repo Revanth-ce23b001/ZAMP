@@ -192,7 +192,9 @@ class Worker:
                                               result.pages.method, res.extraction, at, cached=False)
                 audit.add(conn, run_id, "extraction_called",
                           {"ok": True, "provider": res.provider, "model": res.model, "attempts": res.attempts,
-                           "temperature": 0, **self._usage(res.usage)})
+                           "temperature": 0, **self._usage(res.usage),
+                           **({"retried_after": [self._redact(f) for f in res.retried_after]}
+                              if res.retried_after else {})})
                 summary = f"{res.extraction.field_count()} fields extracted ({res.provider}/{res.model})"
             stages.append(self._stage("EXTRACT", "PASSED", summary, started))
             self._save_stages(conn, run_id, stages)

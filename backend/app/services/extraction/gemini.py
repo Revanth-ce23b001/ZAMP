@@ -61,6 +61,7 @@ class GeminiAdapter:
         config, contents = self._config(schema), self._contents(pages)
         usage = Usage()
         last_error, last_kind = "unknown error", OTHER
+        failures: list[str] = []
         for attempt in range(1, MAX_ATTEMPTS + 1):
             try:
                 resp = self._client.models.generate_content(model=self.model, contents=contents, config=config)
@@ -72,13 +73,14 @@ class GeminiAdapter:
                     calls=usage.calls + 1,
                 )
                 extraction = schema.model_validate_json(resp.text or "")
-                return ExtractionResult(extraction, self.provider, self.model, usage, attempt)
+                return ExtractionResult(extraction, self.provider, self.model, usage, attempt, failures)
             except (ValidationError, json.JSONDecodeError, ValueError) as exc:
                 last_error, last_kind = f"malformed extraction output: {type(exc).__name__}", SCHEMA
             except Exception as exc:  # noqa: BLE001 - API errors, timeouts, network
                 last_error = f"provider call failed: {type(exc).__name__}: {str(exc)[:300]}"
                 last_kind = classify(exc)
                 usage = Usage(usage.input_tokens, usage.output_tokens, usage.thinking_tokens, usage.calls + 1)
+            failures.append(f"{last_kind}: {last_error[:200]}")
             if attempt < MAX_ATTEMPTS:
                 time.sleep(self._retry_pause)
         raise ExtractionError(f"{last_error} (after {MAX_ATTEMPTS} attempts)", usage, kind=last_kind)
