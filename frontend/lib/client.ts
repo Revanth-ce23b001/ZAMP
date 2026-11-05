@@ -5,6 +5,8 @@
 // view on deploy. NEXT_PUBLIC_BACKEND_ORIGIN is a public URL, not a secret. The demo reset
 // token is NOT used here; resets still go through the server-only route /api/demo/reset.
 
+import { backendFetch } from "@/lib/backendStatus";
+
 export const BACKEND = (process.env.NEXT_PUBLIC_BACKEND_ORIGIN || "http://localhost:8000").replace(/\/+$/, "");
 
 export type Sample = { name: string; size_bytes: number };
@@ -18,25 +20,25 @@ async function asJson<T>(res: Response): Promise<T> {
 }
 
 export async function listSamples(): Promise<Sample[]> {
-  return asJson(await fetch(`${BACKEND}/api/samples`, { cache: "no-store" }));
+  return asJson(await backendFetch(`${BACKEND}/api/samples`, { cache: "no-store" }));
 }
 
 export async function processSample(name: string): Promise<Submitted> {
-  return asJson(await fetch(`${BACKEND}/api/samples/${encodeURIComponent(name)}/process`, { method: "POST" }));
+  return asJson(await backendFetch(`${BACKEND}/api/samples/${encodeURIComponent(name)}/process`, { method: "POST" }));
 }
 
 export async function uploadInvoice(file: File): Promise<Submitted> {
   const form = new FormData();
   form.append("file", file);
-  return asJson(await fetch(`${BACKEND}/api/invoices`, { method: "POST", body: form }));
+  return asJson(await backendFetch(`${BACKEND}/api/invoices`, { method: "POST", body: form }));
 }
 
 export async function getRun(runId: string): Promise<RunDetail> {
-  return asJson(await fetch(`${BACKEND}/api/runs/${runId}`, { cache: "no-store" }));
+  return asJson(await backendFetch(`${BACKEND}/api/runs/${runId}`, { cache: "no-store" }));
 }
 
 export async function retryRun(runId: string): Promise<{ run_id: string; status: string }> {
-  return asJson(await fetch(`${BACKEND}/api/runs/${runId}/retry`, { method: "POST" }));
+  return asJson(await backendFetch(`${BACKEND}/api/runs/${runId}/retry`, { method: "POST" }));
 }
 
 export type ReviewResult = {
@@ -50,7 +52,7 @@ export type ReviewResult = {
 };
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
-  return asJson(await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+  return asJson(await backendFetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
                                    body: JSON.stringify(body) }));
 }
 
@@ -190,7 +192,7 @@ export type AuditLog = {
 };
 
 export async function getAudit(runId: string): Promise<AuditLog> {
-  return asJson(await fetch(`${BACKEND}/api/runs/${runId}/audit`, { cache: "no-store" }));
+  return asJson(await backendFetch(`${BACKEND}/api/runs/${runId}/audit`, { cache: "no-store" }));
 }
 
 // ---------------------------------------------------------------- read models (FR-111..FR-117)
@@ -252,7 +254,7 @@ export type Policy = {
   scope: Record<string, string>;
 };
 
-const getJson = async <T>(path: string): Promise<T> => asJson(await fetch(`${BACKEND}${path}`, { cache: "no-store" }));
+const getJson = async <T>(path: string): Promise<T> => asJson(await backendFetch(`${BACKEND}${path}`, { cache: "no-store" }));
 export const listRuns = () => getJson<RunRow[]>("/api/runs");
 export const getDashboard = () => getJson<Dashboard>("/api/dashboard");
 export const listPos = () => getJson<PoBalance[]>("/api/pos");

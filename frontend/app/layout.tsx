@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import ServerStatus from "@/components/ServerStatus";
 import TopNav from "@/components/TopNav";
 
 import "./globals.css";
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
         </header>
+        <ServerStatus />
         <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
       </body>
     </html>

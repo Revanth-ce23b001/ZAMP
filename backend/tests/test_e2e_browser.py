@@ -779,3 +779,40 @@ def test_check_rows_stack_below_1024px(browser):
     assert cell.evaluate("e => getComputedStyle(e).display") == "block"
     assert page.evaluate("() => document.documentElement.scrollWidth <= document.documentElement.clientWidth")
     page.close()
+
+
+# ======================================================================= Day 9B: sleeping-server behaviour
+
+def test_slow_backend_shows_the_starting_notice_then_clears(browser):
+    """A read that takes longer than 2.5 s (as on a free host waking from sleep) shows the notice; when the
+    data arrives the notice goes and the page renders normally."""
+    page = browser.new_page(viewport={"width": 1400, "height": 1000})
+    # Delay the runs list by 5 s inside the page (a Python-side route handler would block Playwright itself).
+    page.add_init_script(r"""(() => { const real = window.fetch;
+        window.fetch = (url, init) => /\/api\/runs$/.test(String(url))
+            ? new Promise((r) => setTimeout(() => r(real(url, init)), 5000)) : real(url, init); })();""")
+    page.goto(f"{WEB}/work-queue")
+    page.get_by_test_id("server-waking").wait_for(timeout=10000)
+    assert "Starting the server" in page.get_by_test_id("server-waking").inner_text()
+    page.get_by_test_id("runs-table").wait_for(timeout=20000)
+    page.wait_for_function("() => !document.querySelector('[data-testid=skeleton-row]')", timeout=20000)
+    page.get_by_test_id("server-waking").wait_for(state="detached", timeout=10000)
+    page.close()
+
+
+def test_reads_retry_while_the_server_is_starting(browser):
+    """The first two answers are 503 (server not up yet); the read retries and the page still loads."""
+    page = browser.new_page(viewport={"width": 1400, "height": 1000})
+    calls = {"n": 0}
+
+    def flaky(route):
+        calls["n"] += 1
+        if calls["n"] <= 2:
+            route.fulfill(status=503, body="starting")
+        else:
+            route.continue_()
+    page.route(f"{API}/api/pos", flaky)
+    page.goto(f"{WEB}/pos")
+    page.get_by_test_id("po-row").first.wait_for(timeout=30000)
+    assert calls["n"] == 3 and page.locator(".notice-bad").count() == 0      # no error shown
+    page.close()
