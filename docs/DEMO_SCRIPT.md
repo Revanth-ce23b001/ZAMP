@@ -1,4 +1,4 @@
-# ClearMatch AP: demo script
+# InvoPilot: demo script
 
 - Live app: https://clearmatch-ap.vercel.app
 - Backend health check: https://clearmatch-ap-backend.onrender.com/api/health
@@ -31,7 +31,7 @@ deliberately holds each stage on "Running" for 0.35 s so it can be seen (display
 
 | Time | Beat | Do | Say |
 |---|---|---|---|
-| 0:00–0:30 | Context | Open **Policy**: scroll past the A-01…A-35 table and the 17 reason codes | "Accounts payable teams check every invoice against a vendor master and a purchase order before paying. ClearMatch splits that in two: AI reads the invoice; deterministic rules decide. Every threshold is here, labelled as a prototype assumption, and every decision records which policy version made it." |
+| 0:00–0:30 | Context | Open **Policy**: scroll past the A-01…A-35 table and the 17 reason codes | "Accounts payable teams check every invoice against a vendor master and a purchase order before paying. InvoPilot splits that in two: AI reads the invoice; deterministic rules decide. Every threshold is here, labelled as a prototype assumption, and every decision records which policy version made it." |
 | 0:30–1:45 | T-01 happy path | Work Queue → Run sample `T01_…` → watch seven stages → **View decision** | "Seven stages: ingest, extract, validate, vendor and bank, duplicate, PO match, decide. Extracted data: every field with its confidence. 'TMT Steel Rod 12 mm' pairs with PO line TMT-12 through an alias, not fuzzy matching. The four arithmetic checks reconcile, including a ₹5,000 discount, freight and a 40-paise round-off. PO-1042 had ₹1,25,000 remaining; this approval consumes ₹95,000, leaving ₹30,000." |
 | 1:45–2:45 | T-02 split-PO overrun | Run `T02_…` → decision → PO match tab | "Third invoice against PO-1041. Two earlier invoices already used ₹2,20,000 of ₹3,00,000. This one is ₹1,00,000 pre-tax for 100 units; only 80 units remain. Quantity: 220 approved plus 100 invoiced exceeds 300 by 20. Value: over the ceiling, which is the PO total plus one tolerance of ₹1,000, applied once per PO, not per invoice. HOLD, with both codes and the numbers behind them." |
 | 2:45–3:45 | T-03 bank mismatch + override | Run `T03_…` → security banner → Vendor & bank tab → review panel: record a *not verified* attempt, then *verified* → Approve | "The account ends 4471 on both sides, so a last-four check would pass. We compare the full account and the IFSC: ICIC0005678 against HDFC0005512 on the master. The banner tells the reviewer to call the trusted contact on the vendor master, never the number printed on the invoice. An unverified attempt is recorded and the invoice stays on hold. Verified: the override goes through the same commit check, and the balance updates." |

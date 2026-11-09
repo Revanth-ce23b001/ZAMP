@@ -1,4 +1,6 @@
-# ClearMatch AP
+# InvoPilot
+
+Formerly ClearMatch AP; the live URL and repository keep the original name.
 
 Prototype for the Zamp PS-1 invoice-processing case study. An LLM reads an invoice PDF;
 deterministic rules decide APPROVE, HOLD or REJECT; humans resolve exceptions.

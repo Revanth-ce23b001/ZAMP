@@ -10,6 +10,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { eventsUrl, fileUrl, getRun, retryRun, type Evidence, type RunDetail } from "@/lib/client";
 import CheckTable from "@/components/CheckTable";
+import { ShiningText } from "@/components/ui/shining-text";
+import { APP_NAME } from "@/lib/brand";
 import { checkRows } from "@/lib/checks";
 import { MIN_STAGE_DISPLAY_MS } from "@/lib/display";
 
@@ -169,6 +171,11 @@ export default function LiveRun({ runId, existing }: { runId: string; existing: 
 
   const evidenceFor = (k: StageKey): Evidence[] => (detail?.decision?.evidence ?? []).filter((e) => e.stage === k);
   const runLabel = header.run_number ? `R-${String(header.run_number).padStart(4, "0")}` : "Run";
+  // The model is reading while Ingest or Extract is the running stage. Derived from the same stage
+  // state the rows use, so the shimmer leaves the moment Extract completes or fails and never
+  // animates over an error. It adds no minimum display of its own: a cached extraction keeps only
+  // the stage row's existing MIN_STAGE_DISPLAY_MS hold.
+  const reading = !error && (rows.INGEST.status === "RUNNING" || rows.EXTRACT.status === "RUNNING");
 
   return (
     <section>
@@ -182,6 +189,12 @@ export default function LiveRun({ runId, existing }: { runId: string; existing: 
         <span className="font-mono text-[13px] text-ink-3">{header.file_name}</span>
         {reconnecting && <span className="status s-nc"><span className="dot" aria-hidden />Reconnecting…</span>}
       </div>
+
+      {reading && (
+        <p className="mt-2 flex min-w-0 text-[14px]">
+          <ShiningText text={`${APP_NAME} is reading the invoice…`} />
+        </p>
+      )}
 
       {queued !== null && (
         <div className="card mt-5 !py-4">

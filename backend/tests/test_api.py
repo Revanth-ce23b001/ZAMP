@@ -14,7 +14,7 @@ def test_health(client):
 
 def test_meta(client):
     body = client.get("/api/meta").json()
-    assert body["product"] == "ClearMatch AP"
+    assert body["product"] == "InvoPilot"
     assert body["product_version"]
     assert body["policy_version"] == load_policy().version
     assert body["fixture_version"] == "fixtures-v1"

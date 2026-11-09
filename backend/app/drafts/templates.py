@@ -28,7 +28,7 @@ CLOSING = {
     "REJECT": "This invoice has been rejected and will not be paid. Our reference: {run_display}.",
 }
 
-SIGN_OFF = "- Draft prepared by ClearMatch AP from the recorded decision. Not sent."
+SIGN_OFF = "- Draft prepared by InvoPilot from the recorded decision. Not sent."
 
 # The note the bank-details draft carries in the UI (item 4).
 TRUSTED_CONTACT_UI_NOTE = "Send only through the contact on file. Do not reply to the invoice."

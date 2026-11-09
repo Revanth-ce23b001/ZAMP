@@ -1,4 +1,4 @@
-# ClearMatch AP seed fixtures (fixtures-v1)
+# InvoPilot seed fixtures (fixtures-v1)
 
 Synthetic seed data for PRD v1.2.1 (frozen 2 Nov 2026). Goes in `backend/seed/`. Money is integer paise.
 

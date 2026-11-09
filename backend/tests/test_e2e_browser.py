@@ -908,3 +908,108 @@ def test_t25a_bank_draft_shows_the_channel_note_and_no_contact(browser):
     for secret in ("1712005008123", "50100045671234"):
         assert secret not in html, secret
     page.close()
+
+
+# ======================================================================= Live Run "reading" status
+
+@pytest.fixture(scope="module")
+def fresh_queue(servers):
+    """Empty the queue once so the shimmer tests can watch a sample process from the start
+    (a re-upload of a file already in the queue lands on the existing run, FR-003)."""
+    for attempt in range(3):
+        r = httpx.post(f"{WEB}/api/demo/reset", json={"confirm": "RESET", "requester_label": "e2e-live-status"},
+                       timeout=60)
+        if r.status_code == 200:
+            return
+        assert r.status_code == 429, r.text          # the only retryable outcome (1 reset per 30 s)
+        time.sleep(31)
+    raise AssertionError("could not reset the demo data")
+
+
+def start_sample(page, prefix):
+    page.goto(f"{WEB}/work-queue")
+    page.select_option("#sample", next((BACKEND_DIR / "samples").glob(f"{prefix}_*.pdf")).name)
+    page.get_by_role("button", name="Run").click()
+    page.wait_for_url("**/runs/*/live", timeout=20000)
+
+
+def test_live_run_shows_the_reading_status_during_extract(browser, fresh_queue):
+    """It appears while the model is reading and is gone once Validate starts. The stage list is
+    unchanged: the shimmer is a status line, not an extra step."""
+    page = browser.new_page(viewport={"width": 1400, "height": 1100})
+    start_sample(page, "T02")
+
+    status = page.get_by_test_id("shining-text")
+    status.wait_for(timeout=20000)
+    assert status.inner_text() == "InvoPilot is reading the invoice…"
+    assert status.get_attribute("role") == "status"
+    assert status.get_attribute("aria-live") == "polite"
+    assert status.get_attribute("data-animated") == "true"
+    assert page.locator("h1").count() == 1                       # the shimmer is not a heading
+    # It is up while the model reads, which is Ingest and then Extract.
+    assert page.locator('[data-stage=INGEST][data-status=RUNNING], '
+                        '[data-stage=EXTRACT][data-status=RUNNING]').count() >= 1
+    page.locator('[data-stage=EXTRACT][data-status=RUNNING]').wait_for(timeout=30000)
+    assert page.get_by_test_id("shining-text").count() == 1       # still up during Extract itself
+    page.screenshot(path=str(SHOTS / "31_live_reading.png"), full_page=True)
+
+    # Gone the moment Extract settles; the existing stage list carries on unchanged.
+    page.locator('[data-stage=VALIDATE]:not([data-status=PENDING])').wait_for(timeout=40000)
+    status.wait_for(state="detached", timeout=10000)
+    assert page.get_by_test_id("shining-text").count() == 0
+    assert [s.get_attribute("data-stage") for s in page.locator("[data-stage]").all()] == [
+        "INGEST", "EXTRACT", "VALIDATE", "VENDOR_BANK", "DUPLICATE", "PO_MATCH", "DECIDE", "COMMIT"]
+    page.get_by_test_id("decision-banner").wait_for(timeout=40000)
+    assert page.get_by_test_id("shining-text").count() == 0
+    page.close()
+
+
+def test_live_run_reading_status_is_static_under_reduced_motion(browser, fresh_queue):
+    context = browser.new_context(viewport={"width": 1400, "height": 1100}, reduced_motion="reduce")
+    page = context.new_page()
+    start_sample(page, "T03")
+
+    status = page.get_by_test_id("shining-text")
+    status.wait_for(timeout=20000)
+    assert status.inner_text() == "InvoPilot is reading the invoice…"
+    assert status.get_attribute("data-animated") == "false"
+    assert status.get_attribute("role") == "status"
+    # Static text: no moving gradient, and the words are painted, not clipped to a background.
+    assert page.evaluate(
+        "() => { const s = getComputedStyle(document.querySelector('[data-testid=shining-text]'));"
+        " return [s.backgroundImage, s.animationName, s.webkitTextFillColor]; }"
+    )[:2] == ["none", "none"]
+    page.close()
+    context.close()
+
+
+def test_live_run_at_360px_keeps_the_reading_status_on_one_line(browser, fresh_queue):
+    """Single line, truncated with an ellipsis below 360px, and it adds no horizontal overflow.
+
+    The Live Run stage rows already overflow a 360px viewport on their own (fixed-width label,
+    status chip and duration columns); that is existing behaviour and not what this asserts. What
+    is asserted is that the status line itself fits and leaves the page's width unchanged.
+    """
+    page = browser.new_page(viewport={"width": 360, "height": 800})
+    start_sample(page, "T04")
+    status = page.get_by_test_id("shining-text")
+    status.wait_for(timeout=20000)
+
+    metrics = page.evaluate("""() => {
+        const el = document.querySelector('[data-testid=shining-text]');
+        const s = getComputedStyle(el);
+        const r = el.getBoundingClientRect();
+        return {height: r.height, right: r.right, lineHeight: parseFloat(s.lineHeight),
+                overflow: s.textOverflow, whiteSpace: s.whiteSpace,
+                clipped: el.scrollWidth > el.clientWidth, page: document.documentElement.scrollWidth};
+    }""")
+    assert metrics["height"] <= metrics["lineHeight"] + 1, metrics      # one line
+    assert metrics["overflow"] == "ellipsis" and metrics["whiteSpace"] == "nowrap"
+    assert metrics["clipped"], "the text should be truncated at this width, not fit"
+    assert metrics["right"] <= 360 + 1, metrics                         # inside the viewport
+
+    # Width of the page with the status up, then once it has gone: the status adds nothing.
+    page.locator('[data-stage=VALIDATE]:not([data-status=PENDING])').wait_for(timeout=40000)
+    status.wait_for(state="detached", timeout=10000)
+    assert page.evaluate("() => document.documentElement.scrollWidth") <= metrics["page"]
+    page.close()

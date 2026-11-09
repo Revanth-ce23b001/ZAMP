@@ -3,12 +3,13 @@ import Link from "next/link";
 
 import ServerStatus from "@/components/ServerStatus";
 import TopNav from "@/components/TopNav";
+import { APP_DESCRIPTION, APP_MARK, APP_NAME } from "@/lib/brand";
 
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ClearMatch AP",
-  description: "AI-assisted invoice processing prototype (synthetic data)",
+  title: APP_NAME,
+  description: APP_DESCRIPTION,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -24,8 +25,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <header className="h-14 border-b border-line bg-surface">
           <div className="mx-auto flex h-full max-w-7xl items-center gap-6 px-6">
             <Link href="/work-queue" className="flex items-center gap-2 no-underline">
-              <span aria-hidden className="flex h-7 w-7 items-center justify-center rounded-ctl bg-accent text-[11px] font-semibold text-white">CM</span>
-              <span className="text-[15px] font-semibold tracking-tight text-ink">ClearMatch AP</span>
+              <span aria-hidden className="flex h-7 w-7 items-center justify-center rounded-ctl bg-accent text-[11px] font-semibold text-white">{APP_MARK}</span>
+              <span className="text-[15px] font-semibold tracking-tight text-ink">{APP_NAME}</span>
             </Link>
             <TopNav />
             <div className="ml-auto flex items-center gap-3">

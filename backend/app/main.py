@@ -1,4 +1,4 @@
-"""ClearMatch AP backend (FastAPI). Read endpoints, demo reset, upload and stages 1-2.
+"""InvoPilot backend (FastAPI). Read endpoints, demo reset, upload and stages 1-2.
 
 Run from backend/:  uvicorn app.main:app --env-file .env
 """
@@ -29,7 +29,9 @@ from app.services.upload import PDF_MIME, UploadError, display_number, submit
 from app.services.worker import Worker
 from app.utils.masking import mask_account_number, masked_bank
 
-PRODUCT_NAME = "ClearMatch AP"
+# Display name only. URLs, the Render service, env vars, the database filename and log keys
+# keep the original "clearmatch" spelling (DEC-022).
+PRODUCT_NAME = "InvoPilot"
 APP_VERSION = "0.1.0"
 PRD_VERSION = "1.2.1"
 

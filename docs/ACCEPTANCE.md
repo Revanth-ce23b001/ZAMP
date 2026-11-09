@@ -156,3 +156,33 @@ or decision outcome changed, and `backend/seed/extraction_accuracy.json` is byte
 | Drafts follow a reviewed decision, because they are generated rather than stored | `test_drafts_follow_the_decision_after_an_override`, `test_a_reviewer_rejection_draft_says_the_invoice_will_not_be_paid`, `test_confirming_a_po_regenerates_the_drafts_from_the_fresh_evidence` |
 
 Suite after Day 10: 538 backend tests passed (28 opt-in skips), 16 fixture tests, 24 browser end-to-end tests.
+
+### Day 11 (display name, and the Live Run reading status)
+
+Two presentation changes. No rule, threshold, policy value, reason code, severity, stage status or
+decision outcome changed; `backend/seed/extraction_accuracy.json`, the fixtures, the sample PDFs and the
+extraction cache snapshot are byte-identical, and the policy version hash is unchanged.
+
+**Display name: InvoPilot (DEC-022).**
+
+| Item | Evidence |
+|---|---|
+| The policy version hash is unchanged, because `policy.yaml` (which names the product on line 1, inside the hash) was not touched | `test_the_policy_version_hash_is_unchanged_by_the_rename`, `test_policy_yaml_keeps_the_old_name_because_it_is_inside_the_hash` |
+| No page source or doc carries the old name in visible text; URLs, service names, package names and log keys keep it | `test_no_visible_text_carries_the_old_product_name` (parametrized over every page source and doc) |
+| Browser tab title, header wordmark and logo square come from one constant | `test_the_header_and_tab_title_use_the_shared_app_name` |
+| `GET /api/meta` and the OpenAPI title carry the new name | `test_the_backend_display_name_is_the_new_name`, `test_the_openapi_title_is_the_new_name`, `test_meta` (the one existing test edited) |
+| Every resolution draft signs off with the new name | `test_the_draft_sign_off_carries_the_new_name` |
+
+**Live Run "reading" status.**
+
+| Item | Evidence |
+|---|---|
+| The shimmer shows while Ingest or Extract is running and is gone once Validate starts; the eight stage rows are unchanged | Browser `test_live_run_shows_the_reading_status_during_extract` |
+| Announced as a status, not a heading; the page still has exactly one `<h1>` | Same test, plus `test_the_status_is_announced_as_a_status_and_is_not_a_heading` |
+| `prefers-reduced-motion`: the text renders with no animation and no moving gradient | Browser `test_live_run_reading_status_is_static_under_reduced_motion`, `test_the_component_honours_reduced_motion_and_uses_only_existing_tokens` |
+| One line, ellipsis below 360px, no horizontal overflow | Browser `test_live_run_at_360px_keeps_the_reading_status_on_one_line` |
+| It says "reading", never "thinking" or "deciding" | `test_the_status_never_claims_the_model_is_thinking_or_deciding` |
+| Existing design tokens only: no new colour, no new font, `globals.css` unchanged after shadcn init was reverted | `test_the_design_tokens_file_was_not_touched_by_shadcn_init`, `test_the_layout_still_uses_the_projects_own_font` |
+| Visibility derives from the existing SSE stage state: no new state, no second stage list, no demo page | `test_the_shimmer_shows_only_while_ingest_or_extract_is_running`, `test_no_demo_page_was_shipped` |
+
+Suite after Day 11: 596 backend tests passed (31 opt-in skips), 16 fixture tests, 27 browser end-to-end tests.
