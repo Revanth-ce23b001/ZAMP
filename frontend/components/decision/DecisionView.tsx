@@ -6,6 +6,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import ResolutionDrafts from "@/components/decision/ResolutionDrafts";
 import ReviewPanel from "@/components/ReviewPanel";
 import { AuditTab, DuplicatesTab, EvidenceTab, ExtractedTab, PoMatchTab, VendorBankTab } from "@/components/decision/Tabs";
 import { CodeChip, DecisionBadge } from "@/components/ui";
@@ -112,6 +113,9 @@ export default function DecisionView({ runId, existing }: { runId: string; exist
           <ul className="mt-3 list-disc pl-5 text-[13px] text-ink-3">{dec.notes.map((n) => <li key={n}>{n}</li>)}</ul>
         )}
       </div>
+
+      {/* Resolution drafts (Day 10, DEC-021): under the reason codes, nothing on an APPROVE */}
+      <ResolutionDrafts runId={runId} status={dec.status} />
 
       <div className="mt-5 flex flex-col gap-5 lg:flex-row">
         <div className="min-w-0 lg:w-3/5">

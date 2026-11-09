@@ -181,6 +181,20 @@ export type RunDetail = {
   trusted_contact?: { name: string; phone: string; email: string | null };
 };
 
+// Day 10 (DEC-021): resolution drafts, generated from the stored decision on request. Never sent,
+// never persisted. APPROVE returns []; a run that is not yet decided returns 409.
+export type RecipientType = "VENDOR" | "BUYER_INTERNAL" | "TRUSTED_CONTACT";
+export type ResolutionDraft = {
+  recipient_type: RecipientType;
+  subject: string;
+  body: string;
+  codes_covered: string[];
+};
+
+export async function getDrafts(runId: string): Promise<ResolutionDraft[]> {
+  return asJson(await backendFetch(`${BACKEND}/api/runs/${runId}/drafts`, { cache: "no-store" }));
+}
+
 export type AuditLog = {
   run_id: string;
   events: { event_id: number; type: string; payload: Record<string, any>; created_at: string }[];

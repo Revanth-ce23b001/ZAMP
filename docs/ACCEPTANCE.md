@@ -128,3 +128,31 @@ One shared check table for every stage (DEC-020): five columns with one kind of 
 | Rows stack as labelled blocks below 1024px | Browser: `test_check_rows_stack_below_1024px` |
 
 Suite after Day 9: 479 backend tests passed (23 opt-in skips), 16 fixture tests, 19 browser end-to-end tests.
+
+### Day 10 (drafted resolution message on HOLD and REJECT)
+
+Every HOLD or REJECT decision renders one draft per recipient from the stored decision (DEC-021, proposed). Deterministic
+templates, no model call, not persisted, never sent. No rule, threshold, policy value, reason code, severity, stage status
+or decision outcome changed, and `backend/seed/extraction_accuracy.json` is byte-identical.
+
+| Item | Evidence |
+|---|---|
+| One template per reason code that can HOLD or REJECT; the specified recipient routing | `test_every_code_that_can_hold_or_reject_has_exactly_one_template`, `test_recipient_routing_is_the_specified_routing` |
+| No figure, threshold, name, email address or phone number inside a template | `test_no_template_contains_a_money_figure_or_contact_detail` |
+| Each code's draft filled from that code's real evidence, checked against expected text | `test_draft_text_matches_the_stored_evidence` (T-02, T-03, T-04, T-05, T-07, T-08, T-09, T-12, T-15, T-16, T-17, T-18) |
+| The five codes no sample raises, from real engine evidence | `test_codes_outside_the_sample_set_render_from_real_engine_evidence` (T-13 twice, T-14, T-19, T-20 twice, T-21) |
+| T-02: ₹80,000 remaining and ₹1,000 of overrun shown separately, never the ₹81,000 they would sum to | `test_t02_shows_the_remaining_balance_apart_from_the_allowed_overrun`; browser `test_t02_resolution_drafts_card` |
+| Deterministic: the same decision renders byte-identical drafts | `test_drafts_are_byte_identical_when_generated_twice` |
+| A placeholder with no value raises; no draft prints a blank, a "None" or an unfilled placeholder | `test_render_raises_rather_than_print_a_blank_or_none`, `test_missing_evidence_value_raises_instead_of_filling_a_blank`, `test_a_missing_po_figure_raises_rather_than_guess`, `test_no_evidence_row_for_a_code_raises`, `test_no_draft_prints_a_blank_a_none_or_an_unfilled_placeholder` |
+| One draft per recipient, worst code leading, deterministic order | `test_one_draft_per_recipient_in_a_fixed_order`, `test_multi_code_decision_produces_one_draft_per_recipient_with_the_worst_code_leading`, `test_code_order_is_severity_then_stage_then_name` |
+| Bank draft: no trusted contact, no invoice contact, no full account number | `test_bank_draft_hides_the_trusted_contact_the_invoice_contact_and_the_full_account`; browser `test_t25a_bank_draft_shows_the_channel_note_and_no_contact` |
+| "Verified" permitted only in "Verified contact on the vendor master"; FR-034 claims absent from the drafts | `tests/test_draft_labels.py` (6 tests), `test_only_the_addressee_line_uses_the_word_verified`, `test_no_rendered_draft_makes_a_forbidden_claim` |
+| APPROVE returns an empty list and renders no card; an undecided run returns 409; an unknown run 404 | `test_approve_returns_an_empty_list`, `test_undecided_run_returns_409_and_unknown_run_404`; browser `test_t01_approve_renders_no_drafts_card` |
+| Read-only: no row, no audit event, no override written | `test_the_endpoint_writes_nothing` |
+| Response shape is exactly `{recipient_type, subject, body, codes_covered}` | `test_response_shape_is_exactly_the_specified_keys` |
+| No outbound network call: no HTTP, SMTP or model client imported or named | `test_the_drafts_package_imports_no_http_smtp_or_model_client`, `test_the_drafts_package_source_names_no_provider_and_no_send` |
+| Every arithmetic equation the rules can fail has a plain-language phrase | `test_every_arithmetic_equation_the_rules_can_fail_has_a_plain_phrase` |
+| UI: drafts card under the reason codes, "Draft, not sent" label, Copy works, no Send button, no `mailto:`, no overflow at 1280px | Browser `test_t02_resolution_drafts_card` |
+| Drafts follow a reviewed decision, because they are generated rather than stored | `test_drafts_follow_the_decision_after_an_override`, `test_a_reviewer_rejection_draft_says_the_invoice_will_not_be_paid`, `test_confirming_a_po_regenerates_the_drafts_from_the_fresh_evidence` |
+
+Suite after Day 10: 538 backend tests passed (28 opt-in skips), 16 fixture tests, 24 browser end-to-end tests.

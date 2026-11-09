@@ -15,6 +15,8 @@ outcome. A person resolves every exception, and every decision records its evide
 - Decisions: **16 of 16** correct (status and the full set of reason codes, against PRD §13).
 - Full per-field and per-scenario tables: [`/accuracy`](https://clearmatch-ap.vercel.app/accuracy) (served from `backend/seed/extraction_accuracy.json`; regenerate with `python -m app.tools.measure_extraction_accuracy` from `backend/`).
 
+**Every HOLD and REJECT carries a drafted resolution message** (DEC-021, proposed): deterministic templates fill the decision's own figures into one draft per recipient — vendor, internal, or the contact on file for a bank-detail change. They are drafts. Nothing is ever sent, and no model is involved.
+
 - Specification: [`ClearMatch_AP_PRD_v1.2_Final.md`](ClearMatch_AP_PRD_v1.2_Final.md) (PRD v1.2.1, authoritative)
 - Decision log: [`DECISIONS.md`](DECISIONS.md)
 - Day 1 brief: [`DAY1_FREEZE_AND_BUILD_BRIEF.md`](DAY1_FREEZE_AND_BUILD_BRIEF.md)

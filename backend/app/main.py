@@ -18,6 +18,7 @@ from app.db.cache_snapshot import load_snapshot_if_empty
 from app.db.connection import connect
 from app.db.migrate import migrate
 from app.db.seed import FIXTURE_VERSION, is_seeded, seed, table_counts
+from app.drafts import DraftError, drafts_for_run
 from app.policy import Policy, load_policy
 from app.services import audit, review, views
 from app.services.review import ReviewError
@@ -146,6 +147,17 @@ def create_app(settings: Settings | None = None,
         if body is None:
             return JSONResponse(status_code=404, content={"error": "run_not_found", "message": "Run not found"})
         return JSONResponse(body)
+
+    @app.get("/api/runs/{run_id}/drafts")
+    def get_run_drafts(run_id: str, conn: sqlite3.Connection = Depends(get_conn)) -> JSONResponse:
+        """Day 10 (DEC-021): the resolution drafts for a decided run, one per recipient type.
+        Generated from the stored decision on every request; nothing is written and nothing is sent.
+        APPROVE returns an empty list; a run that is not yet decided returns 409. The trusted
+        contact's name, phone and email never appear here (FR-044, DEC-008)."""
+        try:
+            return JSONResponse(drafts_for_run(conn, run_id, policy))
+        except DraftError as exc:
+            return JSONResponse(status_code=exc.http_status, content={"error": exc.code, "message": exc.message})
 
     @app.get("/api/runs/{run_id}/file")
     def get_run_file(run_id: str, conn: sqlite3.Connection = Depends(get_conn)):

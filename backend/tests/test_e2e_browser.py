@@ -816,3 +816,95 @@ def test_reads_retry_while_the_server_is_starting(browser):
     page.get_by_test_id("po-row").first.wait_for(timeout=30000)
     assert calls["n"] == 3 and page.locator(".notice-bad").count() == 0      # no error shown
     page.close()
+
+
+# ======================================================================= Day 10 resolution drafts
+
+def decision_page(browser, prefix, width=1400):
+    """Open a sample's decision screen, whether or not an earlier test already ran that sample
+    (a re-upload of the same file lands on the existing run, FR-003, so run_sample cannot be reused)."""
+    name = next((BACKEND_DIR / "samples").glob(f"{prefix}_*.pdf")).name
+    run_id = next((r["run_id"] for r in httpx.get(f"{API}/api/runs").json() if r["file_name"] == name), None)
+    if run_id is None:
+        run_id = httpx.post(f"{API}/api/samples/{name}/process").json()["run_id"]
+    for _ in range(120):
+        if httpx.get(f"{API}/api/runs/{run_id}").json()["status"] == "DECIDED":
+            break
+        time.sleep(0.5)
+    else:
+        raise AssertionError(f"{prefix} never reached DECIDED")
+    page = browser.new_page(viewport={"width": width, "height": 1100})
+    page.goto(f"{WEB}/runs/{run_id}")
+    page.get_by_test_id("decision-header").wait_for(timeout=20000)
+    return page
+
+
+def test_t02_resolution_drafts_card(browser):
+    """DEC-021: the drafts card on T-02, the "Draft, not sent" label, Copy, and no Send button."""
+    page = decision_page(browser, "T02")
+    page.get_by_test_id("drafts-card").wait_for(timeout=20000)
+    assert page.get_by_test_id("draft-not-sent").inner_text() == "Draft, not sent"
+    assert page.get_by_test_id("draft-tab-VENDOR").is_visible()
+
+    subject = page.get_by_test_id("draft-subject").inner_text()
+    body = page.get_by_test_id("draft-body").inner_text()
+    assert subject == "Invoice INV-SL-0489: value exceeds the balance on PO-1041"
+    for part in ("To: Sri Lakshmi Steel Traders", "leaves ₹80,000 of the order unused",
+                 "allowed overrun of ₹1,000", "220 units already approved", "Not sent."):
+        assert part in body, part
+    assert "81,000" not in body
+
+    # No way to send anything: no button or link that would, and no recipient address anywhere.
+    assert "mailto:" not in page.content()
+    for name in ("Send", "Send draft", "Email", "Send to vendor"):
+        assert page.get_by_role("button", name=name, exact=True).count() == 0, name
+    assert page.get_by_role("link", name="Send", exact=True).count() == 0
+
+    # Copy puts subject and body on the clipboard as plain text.
+    page.context.grant_permissions(["clipboard-read", "clipboard-write"])
+    page.get_by_test_id("draft-copy").click()
+    copied = page.evaluate("navigator.clipboard.readText()")
+    assert copied.startswith("Subject: Invoice INV-SL-0489: value exceeds the balance on PO-1041")
+    assert "leaves ₹80,000 of the order unused" in copied
+    assert page.get_by_test_id("draft-copy").inner_text() == "Copied"
+
+    # No horizontal overflow at 1280px (the card wraps instead of scrolling).
+    page.set_viewport_size({"width": 1280, "height": 1000})
+    page.get_by_test_id("draft-body").wait_for()
+    assert page.evaluate("() => document.documentElement.scrollWidth <= window.innerWidth + 1")
+    page.screenshot(path=str(SHOTS / "30_t02_drafts.png"), full_page=True)
+    page.close()
+
+
+def test_t01_approve_renders_no_drafts_card(browser):
+    page = decision_page(browser, "T01")
+    page.get_by_test_id("why-panel").wait_for(timeout=20000)
+    assert page.get_by_test_id("decision-status").first.inner_text() == "APPROVE"
+    assert page.get_by_test_id("drafts-card").count() == 0
+    page.close()
+
+
+def test_t25a_bank_draft_shows_the_channel_note_and_no_contact(browser):
+    """Item 4: the draft is addressed to the contact on file without naming it anywhere on the page.
+
+    T-25(a), not T-03: test_t03_decision_screen_and_bank_override above already overrode T-03 to
+    APPROVE, which correctly leaves it with no drafts at all."""
+    page = decision_page(browser, "T25a")
+    page.get_by_test_id("drafts-card").wait_for(timeout=20000)
+    assert page.get_by_test_id("draft-channel-note").inner_text() == (
+        "Send only through the contact on file. Do not reply to the invoice.")
+    body = page.get_by_test_id("draft-body").inner_text()
+    assert body.startswith("To: Verified contact on the vendor master")
+    for part in ("On our vendor master: XXXX XXXX 8123 · KKBK0008012",
+                 "On this invoice:      XXXX XXXX 1234 · HDFC0002468",
+                 "What differs: account number differs, IFSC differs.",
+                 "last four digits only"):
+        assert part in body, part
+    # Neither the contact on file nor any full account number appears anywhere on the page.
+    html = page.content()
+    for secret in ("Suresh Kaveriappa", "+91 94480 67215", "kaverielectricals@example.com",
+                   "1712005008123", "50100045671234"):
+        assert secret not in body, secret
+    for secret in ("1712005008123", "50100045671234"):
+        assert secret not in html, secret
+    page.close()
