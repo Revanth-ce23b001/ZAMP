@@ -47,8 +47,11 @@ def test_cover_text_is_light_and_uses_no_ink_token():
     assert "text-white" in text
     for unreadable in ("text-ink-2", "text-ink-3", "text-ink-4", "bg-page", "bg-surface", "border-line"):
         assert unreadable not in text, unreadable
-    # text-ink is allowed in exactly one place: dark label on the solid white button.
-    assert text.count("text-ink") == text.count("bg-white px-6 text-sm font-semibold text-ink")
+    # The dark ink token is allowed only where it sits on white: the button and the logo mark.
+    inked = [line.strip() for line in text.splitlines() if "text-ink" in line]
+    assert inked, "expected the ink token on the white elements"
+    for line in inked:
+        assert "bg-white" in line, line
 
 
 def test_the_cover_has_one_h1_and_a_way_into_the_app():

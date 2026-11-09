@@ -11,7 +11,7 @@ export default function Cover() {
   return (
     <Hero className="flex min-h-screen flex-col items-center justify-center px-6 py-20 text-center">
       <span aria-hidden
-            className="flex h-12 w-12 items-center justify-center rounded-ctl bg-white/15 text-[15px] font-semibold tracking-tight text-white ring-1 ring-white/35">
+            className="flex h-12 w-12 items-center justify-center rounded-ctl bg-white text-[17px] font-semibold tracking-tight text-ink">
         {APP_MARK}
       </span>
 
