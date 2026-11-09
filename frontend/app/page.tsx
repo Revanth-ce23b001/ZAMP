@@ -7,12 +7,6 @@ import Link from "next/link";
 import { Hero } from "@/components/ui/tailwind-css-background-snippet";
 import { APP_MARK, APP_NAME } from "@/lib/brand";
 
-const FACTS = [
-  ["16 of 16", "decisions correct"],
-  ["154 of 161", "fields read exactly"],
-  ["0", "decisions made by the model"],
-];
-
 export default function Cover() {
   return (
     <Hero className="flex min-h-screen flex-col items-center justify-center px-6 py-20 text-center">
@@ -40,15 +34,7 @@ export default function Cover() {
         </Link>
       </div>
 
-      <dl className="mt-14 grid w-full max-w-2xl grid-cols-1 gap-6 sm:grid-cols-3">
-        {FACTS.map(([figure, label]) => (
-          <div key={label}>
-            <dt className="text-[26px] font-semibold tracking-tight text-white tabular-nums">{figure}</dt>
-            <dd className="mt-1 text-[13px] leading-snug text-white/70">{label}</dd>
-          </div>))}
-      </dl>
-
-      <p className="mt-14 text-[12px] text-white/55">
+      <p className="mt-12 text-[12px] text-white/55">
         Prototype. All data is synthetic. Money is stored as integer paise.
       </p>
     </Hero>

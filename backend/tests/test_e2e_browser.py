@@ -1037,9 +1037,10 @@ def test_cover_screen_renders_on_the_dark_gradient(browser):
     assert page.locator("h1").count() == 1
     assert page.get_by_role("heading", name="InvoPilot").inner_text() == "InvoPilot"
     body = page.inner_text("body")
-    for part in ("AI reads the invoice", "Deterministic rules decide", "16 of 16",
-                 "All data is synthetic"):
+    for part in ("AI reads the invoice", "Deterministic rules decide", "All data is synthetic"):
         assert part in body, part
+    for gone in ("16 of 16", "154 of 161", "decisions made by the model"):
+        assert gone not in body, gone
 
     # The gradient is painted, and the words on it are light.
     paint = page.evaluate("""() => {
