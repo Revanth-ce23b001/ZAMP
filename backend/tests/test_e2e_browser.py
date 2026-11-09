@@ -984,32 +984,43 @@ def test_live_run_reading_status_is_static_under_reduced_motion(browser, fresh_q
 
 
 def test_live_run_at_360px_keeps_the_reading_status_on_one_line(browser, fresh_queue):
-    """Single line, truncated with an ellipsis below 360px, and it adds no horizontal overflow.
+    """Single line, clamped to its column, truncating with an ellipsis when the column is narrower
+    than the text, and adding no horizontal overflow of its own.
 
-    The Live Run stage rows already overflow a 360px viewport on their own (fixed-width label,
-    status chip and duration columns); that is existing behaviour and not what this asserts. What
-    is asserted is that the status line itself fits and leaves the page's width unchanged.
+    The Live Run stage rows already overflow a narrow viewport on their own (fixed-width label,
+    status chip and duration columns), so the page can be scrolled sideways; that is existing
+    behaviour. What is asserted here is that the status line is never wider than the column it sits
+    in, that the column tracks the viewport, and that the page is no wider while it is on screen.
     """
+    read = """() => {
+        const el = document.querySelector('[data-testid=shining-text]');
+        const s = getComputedStyle(el), r = el.getBoundingClientRect();
+        return {height: r.height, width: r.width, lineHeight: parseFloat(s.lineHeight),
+                overflow: s.textOverflow, whiteSpace: s.whiteSpace,
+                clipped: el.scrollWidth > el.clientWidth,
+                parentWidth: el.parentElement.getBoundingClientRect().width,
+                innerWidth: window.innerWidth, page: document.documentElement.scrollWidth};
+    }"""
     page = browser.new_page(viewport={"width": 360, "height": 800})
     start_sample(page, "T04")
-    status = page.get_by_test_id("shining-text")
-    status.wait_for(timeout=20000)
+    page.get_by_test_id("shining-text").wait_for(timeout=20000)
 
-    metrics = page.evaluate("""() => {
-        const el = document.querySelector('[data-testid=shining-text]');
-        const s = getComputedStyle(el);
-        const r = el.getBoundingClientRect();
-        return {height: r.height, right: r.right, lineHeight: parseFloat(s.lineHeight),
-                overflow: s.textOverflow, whiteSpace: s.whiteSpace,
-                clipped: el.scrollWidth > el.clientWidth, page: document.documentElement.scrollWidth};
-    }""")
-    assert metrics["height"] <= metrics["lineHeight"] + 1, metrics      # one line
-    assert metrics["overflow"] == "ellipsis" and metrics["whiteSpace"] == "nowrap"
-    assert metrics["clipped"], "the text should be truncated at this width, not fit"
-    assert metrics["right"] <= 360 + 1, metrics                         # inside the viewport
+    at360 = page.evaluate(read)
+    assert at360["height"] <= at360["lineHeight"] + 1, at360                 # one line
+    assert at360["overflow"] == "ellipsis" and at360["whiteSpace"] == "nowrap"
+    assert at360["width"] <= at360["parentWidth"] + 1, at360                 # never wider than its column
+    assert at360["parentWidth"] <= at360["innerWidth"], at360                # the column tracks the viewport
 
-    # Width of the page with the status up, then once it has gone: the status adds nothing.
+    # Narrow enough that the text cannot fit: it truncates on one line instead of wrapping.
+    page.set_viewport_size({"width": 240, "height": 800})
+    narrow = page.evaluate(read)
+    assert narrow["clipped"], narrow
+    assert narrow["height"] <= narrow["lineHeight"] + 1, narrow
+    assert narrow["width"] <= narrow["parentWidth"] + 1, narrow
+
+    # The page is no wider for the status being on screen.
+    page.set_viewport_size({"width": 360, "height": 800})
     page.locator('[data-stage=VALIDATE]:not([data-status=PENDING])').wait_for(timeout=40000)
-    status.wait_for(state="detached", timeout=10000)
-    assert page.evaluate("() => document.documentElement.scrollWidth") <= metrics["page"]
+    page.get_by_test_id("shining-text").wait_for(state="detached", timeout=10000)
+    assert page.evaluate("() => document.documentElement.scrollWidth") <= at360["page"]
     page.close()
