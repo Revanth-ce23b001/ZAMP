@@ -1024,3 +1024,58 @@ def test_live_run_at_360px_keeps_the_reading_status_on_one_line(browser, fresh_q
     page.get_by_test_id("shining-text").wait_for(state="detached", timeout=10000)
     assert page.evaluate("() => document.documentElement.scrollWidth") <= at360["page"]
     page.close()
+
+
+# ======================================================================= cover screen at "/"
+
+def test_cover_screen_renders_on_the_dark_gradient(browser):
+    """DEC-024: "/" is the one dark surface. Light text on it, no app chrome, a way in."""
+    page = browser.new_page(viewport={"width": 1400, "height": 1100})
+    page.goto(f"{WEB}/")
+    page.get_by_role("heading", name="InvoPilot").wait_for(timeout=20000)
+
+    assert page.locator("h1").count() == 1
+    assert page.get_by_role("heading", name="InvoPilot").inner_text() == "InvoPilot"
+    body = page.inner_text("body")
+    for part in ("AI reads the invoice", "Deterministic rules decide", "16 of 16",
+                 "All data is synthetic"):
+        assert part in body, part
+
+    # The gradient is painted, and the words on it are light.
+    paint = page.evaluate("""() => {
+        const h1 = document.querySelector('h1');
+        const painted = [...document.querySelectorAll('div')]
+            .map((d) => getComputedStyle(d).backgroundImage)
+            .filter((b) => b.includes('radial-gradient'));
+        return {gradients: painted.length, sample: painted[0] || '',
+                headingColor: getComputedStyle(h1).color};
+    }""")
+    assert paint["gradients"] >= 1, paint
+    assert "rgb(0, 0, 0)" in paint["sample"] and "rgb(102, 51, 238)" in paint["sample"], paint
+    assert paint["headingColor"] == "rgb(255, 255, 255)", paint
+
+    # No app chrome competing with it, and no horizontal overflow.
+    assert page.get_by_role("navigation", name="Main").count() == 0
+    assert page.get_by_role("link", name="Reset demo data").count() == 0
+    assert page.evaluate("() => document.documentElement.scrollWidth <= window.innerWidth + 1")
+    page.screenshot(path=str(SHOTS / "32_cover.png"), full_page=True)
+
+    # It leads into the app, and the app comes back with its own chrome and light background.
+    page.get_by_role("link", name="Open the work queue").click()
+    page.wait_for_url("**/work-queue", timeout=20000)
+    page.get_by_test_id("runs-table").wait_for(timeout=20000)
+    assert page.get_by_role("navigation", name="Main").count() == 1
+    assert page.evaluate("() => getComputedStyle(document.body).backgroundColor") == "rgb(247, 247, 248)"
+    assert page.evaluate(
+        "() => [...document.querySelectorAll('div')].some("
+        "(d) => getComputedStyle(d).backgroundImage.includes('radial-gradient'))") is False
+    page.close()
+
+
+def test_cover_screen_fits_a_phone(browser):
+    page = browser.new_page(viewport={"width": 360, "height": 740})
+    page.goto(f"{WEB}/")
+    page.get_by_role("heading", name="InvoPilot").wait_for(timeout=20000)
+    assert page.evaluate("() => document.documentElement.scrollWidth <= window.innerWidth + 1")
+    assert page.get_by_role("link", name="Open the work queue").is_visible()
+    page.close()

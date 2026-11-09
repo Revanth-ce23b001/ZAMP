@@ -186,3 +186,21 @@ extraction cache snapshot are byte-identical, and the policy version hash is unc
 | Visibility derives from the existing SSE stage state: no new state, no second stage list, no demo page | `test_the_shimmer_shows_only_while_ingest_or_extract_is_running`, `test_no_demo_page_was_shipped` |
 
 Suite after Day 11: 596 backend tests passed (31 opt-in skips), 16 fixture tests, 27 browser end-to-end tests.
+
+### Day 12 (cover screen at `/`)
+
+Presentation only (DEC-024, proposed). No rule, threshold, policy value, reason code, severity, stage
+status or decision outcome changed; the policy hash and the measured files are untouched.
+
+| Item | Evidence |
+|---|---|
+| The supplied gradient is used unchanged, from `components/ui/` | `test_the_backdrop_carries_the_supplied_gradient_unchanged`, `test_the_backdrop_lives_where_shadcn_components_are_imported_from` |
+| It is the only dark surface: the gradient appears on the cover and nowhere else, including `globals.css` | `test_the_gradient_appears_only_on_the_cover`, `test_the_light_design_tokens_are_untouched` |
+| Text on the gradient is light; no ink token is painted on it except the dark label on the white button | `test_cover_text_is_light_and_uses_no_ink_token` |
+| One `<h1>`, a way into the app, product name from the shared constant | `test_the_cover_has_one_h1_and_a_way_into_the_app` |
+| The header and status strip are hidden on `/` only; the header markup is unchanged | `test_the_chrome_is_hidden_on_the_cover_only` |
+| No image asset and no demo route | `test_the_cover_sources_name_no_image_asset`, `test_no_demo_route_was_added` |
+| Renders on the gradient with white text, no app chrome, no overflow; leads into the work queue, which comes back light with its own chrome and no gradient | Browser `test_cover_screen_renders_on_the_dark_gradient` |
+| Fits a 360px phone with the primary link visible | Browser `test_cover_screen_fits_a_phone` |
+
+Suite after Day 12: 609 backend tests passed (33 opt-in skips), 16 fixture tests, 29 browser end-to-end tests.

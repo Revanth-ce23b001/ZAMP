@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { ChromeGate, MainShell } from "@/components/ChromeGate";
 import ServerStatus from "@/components/ServerStatus";
 import TopNav from "@/components/TopNav";
 import { APP_DESCRIPTION, APP_MARK, APP_NAME } from "@/lib/brand";
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
       </head>
       <body className="min-h-screen">
+        <ChromeGate>
         <header className="h-14 border-b border-line bg-surface">
           <div className="mx-auto flex h-full max-w-7xl items-center gap-6 px-6">
             <Link href="/work-queue" className="flex items-center gap-2 no-underline">
@@ -39,7 +41,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </header>
         <ServerStatus />
-        <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
+        </ChromeGate>
+        <MainShell>{children}</MainShell>
       </body>
     </html>
   );
