@@ -1,7 +1,9 @@
 # Render blueprint for the ClearMatch AP backend (Dashboard > New > Blueprint > this repo).
 # Free plan: the service sleeps after ~15 minutes idle and the disk is ephemeral. Both are handled:
-# startup reseeds fixtures-v1 and loads the extraction-cache snapshot (DEC-014), and
-# .github/workflows/keep-warm.yml pings /api/health to avoid cold starts during a demo.
+# startup reseeds fixtures-v1 and loads the extraction-cache snapshot (DEC-014), and the service
+# holds itself awake during demo hours (KEEP_AWAKE_* below, DEC-026) so there is no 30-45 s cold
+# start then. .github/workflows/keep-warm.yml opens that window and is the only thing that can wake
+# a service that is already asleep.
 services:
   - type: web
     name: clearmatch-ap-backend
@@ -20,6 +22,19 @@ services:
         sync: false
       - key: FRONTEND_ORIGIN_REGEX     # optional, admits Vercel preview URLs: ^https://clearmatch-ap[a-z0-9-]*\.vercel\.app$
         sync: false
+      # DEC-026: the service's own PUBLIC url, pinged every 10 minutes inside the window below so
+      # the free tier does not sleep during demo hours. A public URL, not a secret. Clearing this
+      # turns the whole thing off and the service sleeps as before.
+      - key: KEEP_AWAKE_URL
+        value: https://clearmatch-ap-backend.onrender.com
+      # 16 h a day is about 480 of Render's 750 free instance-hours a month. Widening this towards
+      # 24 h risks suspension for the rest of the month, which would take the demo down entirely.
+      - key: KEEP_AWAKE_WINDOW
+        value: 07:00-23:00
+      - key: KEEP_AWAKE_TZ
+        value: Asia/Kolkata
+      - key: KEEP_AWAKE_INTERVAL_SECONDS
+        value: "600"
       - key: LLM_PROVIDER
         value: gemini
       - key: LLM_MODEL

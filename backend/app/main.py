@@ -2,10 +2,11 @@
 
 Run from backend/:  uvicorn app.main:app --env-file .env
 """
+import asyncio
 import json
 import sqlite3
 from collections.abc import Callable, Iterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import Body, Depends, FastAPI, Request, UploadFile
@@ -20,7 +21,7 @@ from app.db.migrate import migrate
 from app.db.seed import FIXTURE_VERSION, is_seeded, seed, table_counts
 from app.drafts import DraftError, drafts_for_run
 from app.policy import Policy, load_policy
-from app.services import audit, review, views
+from app.services import audit, keep_awake, review, views
 from app.services.review import ReviewError
 from app.services.events import queue_position, run_events
 from app.services.extraction.base import ExtractionAdapter
@@ -74,12 +75,22 @@ def create_app(settings: Settings | None = None,
     settings.uploads_dir.mkdir(parents=True, exist_ok=True)
     worker = Worker(settings, policy, adapter_for)
 
+    # DEC-026. Raises ConfigError here, before the server starts, if the url, window, timezone or
+    # interval is malformed; None when KEEP_AWAKE_URL is unset, which is the default everywhere
+    # except the deployed service.
+    keep_awake_config = keep_awake.from_settings(settings)
+
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         worker.start()          # one sequential worker per backend instance (A-22)
+        awake_task = asyncio.create_task(keep_awake.run(keep_awake_config)) if keep_awake_config else None
         try:
             yield
         finally:
+            if awake_task:
+                awake_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await awake_task
             worker.stop()
 
     app = FastAPI(title=PRODUCT_NAME, version=APP_VERSION, lifespan=lifespan)

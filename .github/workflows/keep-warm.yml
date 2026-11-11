@@ -1,20 +1,42 @@
-# Keeps the free Render backend awake so the demo has no cold start.
+# Opens the demo window on the free Render backend (DECISIONS.md DEC-026).
+#
+# The backend keeps ITSELF awake while it is running (app/services/keep_awake.py): it pings its own
+# public url every 10 minutes between 07:00 and 23:00 IST, which is what actually prevents the
+# 30-45 s cold start. But nothing inside a sleeping container runs, so it cannot wake itself. That
+# is this workflow's job: one short request at the start of the window, and a few checkpoints in
+# case the service was restarted or redeployed while the window was open.
+#
+# Why not a */10 schedule, which is what this used to be: GitHub throttles high-frequency
+# schedules. Measured over 2026-11-09..11, the */10 workflow actually fired every 4 to 8 hours, and
+# its own run durations (39 s, 50 s, 40 s, against 6 s when warm) show the backend was asleep
+# nearly every time. Fixed hourly times are honoured far more reliably, and with the backend
+# holding itself awake between them, six runs a day are enough.
+#
 # Set the repository variable BACKEND_URL (Settings > Secrets and variables > Actions > Variables)
 # to the Render URL, e.g. https://clearmatch-ap-backend.onrender.com. Without it, this does nothing.
-# GitHub may delay scheduled runs by several minutes; open the app a few minutes before a demo too.
+# GitHub may still delay a scheduled run by several minutes; for a demo, run it by hand first.
 name: keep-warm
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "30 1 * * *"      # 07:00 IST - the window opens; this is the one that matters
+    - cron: "30 4 * * *"      # 10:00 IST
+    - cron: "30 7 * * *"      # 13:00 IST
+    - cron: "30 10 * * *"     # 16:00 IST
+    - cron: "30 13 * * *"     # 19:00 IST
+    - cron: "30 16 * * *"     # 22:00 IST - last checkpoint before the window closes
   workflow_dispatch: {}
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
     steps:
       - name: Ping /api/health
         if: ${{ vars.BACKEND_URL != '' }}
         run: |
           start=$(date +%s)
           curl -fsS --max-time 120 "${{ vars.BACKEND_URL }}/api/health"
-          echo " (took $(( $(date +%s) - start ))s)"
+          took=$(( $(date +%s) - start ))
+          echo " (took ${took}s)"
+          if [ "$took" -gt 15 ]; then
+            echo "::notice::Woke a sleeping backend (${took}s). Inside the window it should already be awake."
+          fi

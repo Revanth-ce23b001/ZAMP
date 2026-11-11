@@ -37,15 +37,18 @@ All data is synthetic. Money is stored as integer paise.
 
 The backend runs on Render's free tier and the frontend on Vercel. Two hosting behaviours matter:
 
-- **Cold start.** The backend sleeps after about 15 minutes idle. The first request then takes 33–43 s (measured) while it wakes.
+- **Cold start, and why you will usually not see one.** The backend sleeps after about 15 minutes idle, and the first request then takes 33–43 s (measured) while it wakes. Between **07:00 and 23:00 IST** it holds itself awake (DEC-026): while running, it pings its own public URL every 10 minutes, which resets the host's idle timer, so inside those hours the demo opens at normal speed. Outside them it is allowed to sleep, which keeps monthly usage near 480 of the host's 750 free instance-hours. The backend's own start-up is 0.34 s — migrations, seed and the cache snapshot; the 33–43 s is entirely the free tier waking the container.
 - **The database resets on every wake, restart or redeploy (DEC-016).** The disk is temporary, so runs and the `demo_resets` history do not survive. Seed data, PO balances and the extraction cache (from `backend/seed/extraction_cache.json`) are reloaded at startup. The 16 sample invoices therefore re-run with no API call. Reset history is append-only within one server lifetime, not across restarts.
 
 **Warm-up before a demo:**
-1. Open https://clearmatch-ap-backend.onrender.com/api/health and wait for `{"status":"ok"}`.
+1. Open https://clearmatch-ap-backend.onrender.com/api/health and wait for `{"status":"ok"}`. Inside the 07:00–23:00 IST window it should answer at once; if it takes 30–45 s it had been asleep, and it will now stay awake.
 2. Open the app, click **Reset demo data**, type `RESET`.
-3. Keep the tab active (any request at least every 10 minutes).
+3. The backend keeps itself awake from here; you no longer need to keep a tab active.
 
-The GitHub keep-warm workflow helps but is not guaranteed: scheduled workflows can be delayed or skipped. Details and the
+For a demo **outside** the window, or straight after a redeploy, do step 1 first — nothing inside a sleeping container
+runs, so the backend cannot wake itself. The `keep-warm` workflow fires at 07:00 IST to open the window and at five
+checkpoints during it, and can be run by hand from the Actions tab. It used to be scheduled every 10 minutes, but
+GitHub throttles high-frequency schedules and it actually fired every 4–8 hours (DEC-026). Details and the
 mid-interview contingency: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md).
 
 **Live extraction is free-tier only (DEC-017).** Uncached PDFs go to `gemini-3.6-flash` (20 requests
