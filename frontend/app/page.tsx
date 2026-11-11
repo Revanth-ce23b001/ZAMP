@@ -4,6 +4,7 @@
 
 import Link from "next/link";
 
+import { ProcessInvoiceNudge } from "@/components/ui/process-invoice-nudge";
 import { Hero } from "@/components/ui/tailwind-css-background-snippet";
 import { APP_MARK, APP_NAME } from "@/lib/brand";
 
@@ -23,11 +24,13 @@ export default function Cover() {
         AI reads the invoice. Deterministic rules decide. A person resolves every exception.
       </p>
 
-      <div className="mt-9 flex flex-col items-center gap-3 sm:flex-row">
-        <Link href="/work-queue"
-              className="inline-flex min-h-11 items-center justify-center rounded-ctl bg-white px-6 text-sm font-semibold text-ink no-underline transition-colors hover:bg-white/90">
-          Open the work queue
-        </Link>
+      <div className="mt-9 flex flex-col items-center gap-5 sm:flex-row sm:items-end sm:gap-4">
+        <ProcessInvoiceNudge>
+          <Link href="/work-queue"
+                className="inline-flex min-h-11 items-center justify-center rounded-ctl bg-white px-6 text-sm font-semibold text-ink no-underline transition-colors hover:bg-white/90">
+            Open the work queue
+          </Link>
+        </ProcessInvoiceNudge>
         <Link href="/policy"
               className="inline-flex min-h-11 items-center justify-center rounded-ctl px-6 text-sm font-medium text-white/80 no-underline ring-1 ring-white/25 transition-colors hover:bg-white/10 hover:text-white">
           See the policy
