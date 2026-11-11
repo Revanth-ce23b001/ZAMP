@@ -1,20 +1,19 @@
 "use client";
 
-// Day 9B: starts waking the backend as soon as any page opens, and explains the wait while it starts,
-// so a sleeping free-tier server reads as "starting" rather than as a frozen page.
+// Day 9B: explains the wait while a sleeping free-tier server starts, so it reads as "starting"
+// rather than as a frozen page.
+//
+// The wake-up ping itself moved to BackendPrewarm, which is mounted outside <ChromeGate> so it also
+// runs on the cover at "/" — this component is inside the gate and never renders there. This one
+// only reports; it no longer starts anything.
 
 import { useEffect, useState } from "react";
 
-import { backendFetch, onBackendWaiting } from "@/lib/backendStatus";
-import { BACKEND } from "@/lib/client";
+import { onBackendWaiting } from "@/lib/backendStatus";
 
 export default function ServerStatus() {
   const [waiting, setWaiting] = useState(false);
-  useEffect(() => {
-    const off = onBackendWaiting(setWaiting);
-    backendFetch(`${BACKEND}/api/health`, { cache: "no-store" }).catch(() => undefined);   // wake it now
-    return () => { off(); };
-  }, []);
+  useEffect(() => onBackendWaiting(setWaiting), []);
   if (!waiting) return null;
   return (
     <div role="status" data-testid="server-waking" className="border-b border-line bg-hold-bg">
