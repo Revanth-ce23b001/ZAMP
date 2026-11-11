@@ -155,3 +155,24 @@ def test_the_running_app_pings_itself_and_stops_at_shutdown(tmp_path):
         assert len(hits) == pinged, "the task kept pinging after the app shut down"
     finally:
         server.shutdown()
+
+
+def test_meta_reports_whether_this_instance_holds_itself_awake(tmp_path):
+    """The only way to tell from outside that a deploy picked the settings up."""
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+    from tests.conftest import TEST_CHAIN
+
+    common = dict(database_path=tmp_path / "x.db", uploads_dir=tmp_path / "up",
+                  gemini_api_key="unused", text_chain=TEST_CHAIN, vision_chain=TEST_CHAIN)
+
+    off = TestClient(create_app(settings(**common))).get("/api/meta").json()["keep_awake"]
+    assert off == {"enabled": False}
+
+    on = TestClient(create_app(settings(
+        **common, keep_awake_url="https://x.example"))).get("/api/meta").json()["keep_awake"]
+    assert on == {"enabled": True, "window": "07:00-23:00",
+                  "timezone": "Asia/Kolkata", "interval_seconds": 600.0}
+    # The url is a public hostname, but it is still not part of the payload.
+    assert "x.example" not in str(on)

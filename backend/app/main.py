@@ -245,6 +245,16 @@ def create_app(settings: Settings | None = None,
             "policy_version": policy.version,
             "policy_version_short": policy.version_short,
             "fixture_version": FIXTURE_VERSION,
+            # DEC-026. Whether this instance is holding itself awake, and when. Without this there
+            # is no way to tell from outside whether the deploy picked the settings up, and the
+            # symptom it prevents - a 30-45 s cold start - only shows up hours later. No secret:
+            # the url is omitted and the window is not sensitive.
+            "keep_awake": ({"enabled": False} if keep_awake_config is None else {
+                "enabled": True,
+                "window": f"{keep_awake_config.start:%H:%M}-{keep_awake_config.end:%H:%M}",
+                "timezone": keep_awake_config.tz.key,
+                "interval_seconds": keep_awake_config.interval_seconds,
+            }),
             "scope": {
                 "currency": policy.assumption("A-01"),
                 "tax_regime": policy.assumption("A-02")["regime"],
